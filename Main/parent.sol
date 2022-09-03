@@ -4,6 +4,7 @@ pragma solidity ^0.8.7;
 
 interface IBot {
     function swapExactInputSingle(address token,uint256 amountIn) external returns(uint256 amountOut);
+    function swapExactETHForTokens(address token,uint256 amountIn) external returns(uint256 amountOut);
 }
 
 contract Main {
@@ -53,11 +54,20 @@ contract Main {
         }
     }
 
-    function buy(uint256[] memory subAddr, address token, uint256 amountIn) public isWhitelist {
-        for(uint i = 0; i < subAddr.length; i ++) {
-            IBot(subContracts[i]).swapExactInputSingle(token, amountIn);
+    function buy(address token, uint256 amountIn, uint256 amountPerSub, bool buyOrSell) public isWhitelist {
+        uint cnt = amountIn / amountPerSub;
+        uint remainAmount = amountIn % amountPerSub;
+        if(buyOrSell){
+            for(uint i = 0; i < cnt; i ++) {
+                IBot(subContracts[i]).swapExactETHForTokens(token, amountPerSub);
+            }
+            IBot(subContracts[cnt]).swapExactETHForTokens(token, remainAmount);
+        } else {
+            for(uint i = 0; i < cnt; i ++) {
+                IBot(subContracts[i]).swapExactInputSingle(token, amountPerSub);
+            }
+            IBot(subContracts[cnt]).swapExactInputSingle(token, remainAmount);
         }
     }
-
 
 }

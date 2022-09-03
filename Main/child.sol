@@ -14,16 +14,18 @@ contract Bot {
     address public owner;
     address public weth;
     address private factory;
+    address private routerAddr;
     mapping(address => bool) private whitelist;
 
     uint24 public constant poolFee = 3000;
 
-    constructor(ISwapRouter _swapRouter, address _mainContract) {
-        router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    constructor(ISwapRouter _swapRouter, address _router, address _mainContract) {
+        router = IUniswapV2Router02(_router);
         weth = router.WETH();
         factory = router.factory();
         swapRouter = _swapRouter;
         whitelist[_mainContract] = true;
+        routerAddr = _router;
         owner = msg.sender;
     }
 
@@ -32,13 +34,33 @@ contract Bot {
         _;
     }
 
+    modifier isMainContract() {
+        require(whitelist[msg.sender] == true, "Caller is not main contract");
+        _;
+    }
+
     function changeMainContract(address _newAddr) public isOwner {
         whitelist[_newAddr] = true;
     }
 
-    //Sell the token with exact amount
+    //buy use V2
+    function swapExactETHForTokens(address _token, uint256 _amountIn) external isMainContract payable {
+        address[] memory path = new address[](2);
+        path[0] = weth;
+        path[1] = _token;
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: _amountIn}(
+            0,
+            path,
+            routerAddr,
+            block.timestamp
+        );
+    }
+
+    //Sell use V3
     function swapExactInputSingle(address token, uint256 amountIn)
         external
+        payable 
+        isMainContract
         returns (uint256 amountOut)
     {
         TransferHelper.safeTransferFrom(
