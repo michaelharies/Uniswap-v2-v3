@@ -19,7 +19,11 @@ contract Bot {
 
     uint24 public constant poolFee = 3000;
 
-    constructor(ISwapRouter _swapRouter, address _router, address _mainContract) {
+    constructor(
+        ISwapRouter _swapRouter,
+        address _router,
+        address _mainContract
+    ) {
         router = IUniswapV2Router02(_router);
         weth = router.WETH();
         factory = router.factory();
@@ -44,22 +48,23 @@ contract Bot {
     }
 
     //buy use V2
-    function swapExactETHForTokens(address _token, uint256 _amountIn) external isMainContract payable {
+    function swapExactETHForTokens(address _token, uint256 _amountIn)
+        external
+        payable
+        isMainContract
+    {
         address[] memory path = new address[](2);
         path[0] = weth;
         path[1] = _token;
-        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: _amountIn}(
-            0,
-            path,
-            routerAddr,
-            block.timestamp
-        );
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{
+            value: _amountIn
+        }(0, path, routerAddr, block.timestamp);
     }
 
     //Sell use V3
     function swapExactInputSingle(address token, uint256 amountIn)
         external
-        payable 
+        payable
         isMainContract
         returns (uint256 amountOut)
     {

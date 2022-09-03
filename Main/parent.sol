@@ -3,8 +3,13 @@
 pragma solidity ^0.8.7;
 
 interface IBot {
-    function swapExactInputSingle(address token,uint256 amountIn) external returns(uint256 amountOut);
-    function swapExactETHForTokens(address token,uint256 amountIn) external returns(uint256 amountOut);
+    function swapExactInputSingle(address token, uint256 amountIn)
+        external
+        returns (uint256 amountOut);
+
+    function swapExactETHForTokens(address token, uint256 amountIn)
+        external
+        returns (uint256 amountOut);
 }
 
 contract Main {
@@ -27,13 +32,13 @@ contract Main {
     }
 
     function setWhitelist(address[] memory _whitelist) public isOwner {
-        for(uint i = 0; i < _whitelist.length; i ++) {
+        for (uint256 i = 0; i < _whitelist.length; i++) {
             whitelist[_whitelist[i]] = true;
         }
     }
 
     function removeWhitelist(address[] memory _blacklist) public isOwner {
-        for(uint i = 0; i < _blacklist.length; i ++) {
+        for (uint256 i = 0; i < _blacklist.length; i++) {
             whitelist[_blacklist[i]] = false;
         }
     }
@@ -43,31 +48,46 @@ contract Main {
     }
 
     function addSubContract(address[] memory _subContracts) public isOwner {
-        for(uint i = 0; i < _subContracts.length; i ++) {
+        for (uint256 i = 0; i < _subContracts.length; i++) {
             subContracts.push(_subContracts[i]);
         }
     }
 
     function removeSubContracts(uint256 _cnt) public isOwner {
-        for(uint i = 0; i < _cnt; i ++) {
+        for (uint256 i = 0; i < _cnt; i++) {
             subContracts.pop();
         }
     }
 
-    function buy(address token, uint256 amountIn, uint256 amountPerSub, bool buyOrSell) public isWhitelist {
-        uint cnt = amountIn / amountPerSub;
-        uint remainAmount = amountIn % amountPerSub;
-        if(buyOrSell){
-            for(uint i = 0; i < cnt; i ++) {
-                IBot(subContracts[i]).swapExactETHForTokens(token, amountPerSub);
+    function buy(
+        address token,
+        uint256 amountIn,
+        uint256[] memory subAddr,
+        uint256 amountPerSub,
+        bool buyOrSell
+    ) public isWhitelist {
+        if (buyOrSell) {
+            for (uint256 i = 0; i < subAddr.length; i++) {
+                IBot(subContracts[subAddr[i]]).swapExactETHForTokens(
+                    token,
+                    amountPerSub
+                );
             }
-            IBot(subContracts[cnt]).swapExactETHForTokens(token, remainAmount);
+            IBot(subContracts[subAddr[subAddr.length]]).swapExactETHForTokens(
+                token,
+                amountIn
+            );
         } else {
-            for(uint i = 0; i < cnt; i ++) {
-                IBot(subContracts[i]).swapExactInputSingle(token, amountPerSub);
+            for (uint256 i = 0; i < subAddr.length; i++) {
+                IBot(subContracts[subAddr[i]]).swapExactInputSingle(
+                    token,
+                    amountPerSub
+                );
             }
-            IBot(subContracts[cnt]).swapExactInputSingle(token, remainAmount);
+            IBot(subContracts[subAddr.length]).swapExactInputSingle(
+                token,
+                amountIn
+            );
         }
     }
-
 }
