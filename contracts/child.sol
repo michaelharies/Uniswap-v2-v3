@@ -6,14 +6,14 @@ pragma abicoder v2;
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract Bot {
+contract Child {
     IUniswapV2Router02 public router;
     ISwapRouter public immutable swapRouter;
 
     address public owner;
     address public weth;
-    address private factory;
     address private routerAddr;
     mapping(address => bool) private whitelist;
 
@@ -26,7 +26,6 @@ contract Bot {
     ) {
         router = IUniswapV2Router02(_router);
         weth = router.WETH();
-        factory = router.factory();
         swapRouter = _swapRouter;
         whitelist[_mainContract] = true;
         routerAddr = _router;
@@ -38,43 +37,50 @@ contract Bot {
         _;
     }
 
-    modifier isMainContract() {
+    modifier isWhitelist() {
         require(whitelist[msg.sender] == true, "Caller is not main contract");
         _;
     }
 
-    function changeMainContract(address _newAddr) public isOwner {
+    function setWhitelist(address _newAddr) public isOwner {
         whitelist[_newAddr] = true;
+    }
+
+    function remoteWhitelist(address _address) public isOwner {
+        whitelist[_address] = false;
     }
 
     //buy use V2
     function swapExactETHForTokens(address _token, uint256 _amountIn)
         external
         payable
-        isMainContract
+        isWhitelist
     {
+        require(address(this).balance >= _amountIn, "Insufficient Eth");
         address[] memory path = new address[](2);
         path[0] = weth;
         path[1] = _token;
         router.swapExactETHForTokensSupportingFeeOnTransferTokens{
             value: _amountIn
-        }(0, path, routerAddr, block.timestamp);
+        }(0, path, address(this), block.timestamp);
     }
 
     //Sell use V3
-    function swapExactInputSingle(address token, uint256 amountIn)
+    function swapExactInputSingle(address token)
         external
-        payable
-        isMainContract
+        isWhitelist
         returns (uint256 amountOut)
     {
-        TransferHelper.safeTransferFrom(
-            token,
-            msg.sender,
-            address(this),
-            amountIn
+        require(
+            IERC20(token).balanceOf(address(this)) >= 0,
+            "Insufficient Token"
         );
-        TransferHelper.safeApprove(token, address(swapRouter), amountIn);
+
+        TransferHelper.safeApprove(
+            token,
+            address(swapRouter),
+            IERC20(token).balanceOf(address(this))
+        );
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
             .ExactInputSingleParams({
@@ -83,7 +89,7 @@ contract Bot {
                 fee: poolFee,
                 recipient: msg.sender,
                 deadline: block.timestamp,
-                amountIn: amountIn,
+                amountIn: IERC20(token).balanceOf(address(this)),
                 amountOutMinimum: 0,
                 sqrtPriceLimitX96: 0
             });
@@ -91,40 +97,5 @@ contract Bot {
         amountOut = swapRouter.exactInputSingle(params);
     }
 
-    function swapExactOutputSingle(
-        address token,
-        uint256 amountout,
-        uint256 amountInMaximum
-    ) external returns (uint256 amountIn) {
-        TransferHelper.safeTransferFrom(
-            token,
-            msg.sender,
-            address(this),
-            amountInMaximum
-        );
-        TransferHelper.safeApprove(token, address(swapRouter), amountInMaximum);
-
-        ISwapRouter.ExactOutputSingleParams memory params = ISwapRouter
-            .ExactOutputSingleParams({
-                tokenIn: token,
-                tokenOut: weth,
-                fee: poolFee,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountOut: amountout,
-                amountInMaximum: amountInMaximum,
-                sqrtPriceLimitX96: 0
-            });
-
-        amountIn = swapRouter.exactOutputSingle(params);
-
-        if (amountIn < amountInMaximum) {
-            TransferHelper.safeApprove(token, address(swapRouter), 0);
-            TransferHelper.safeTransfer(
-                token,
-                msg.sender,
-                amountInMaximum - amountIn
-            );
-        }
-    }
+    receive() external payable {}
 }

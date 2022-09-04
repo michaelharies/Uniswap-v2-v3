@@ -1,0 +1,11 @@
+{
+  "name": "uniswap",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/Cooker0910/Uniswap-Bot-V2-V3-.git",
+  "author": "cooker0910 <cooker0910@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "hardhat": "^2.11.0"
+  }
+}
