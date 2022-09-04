@@ -6,11 +6,7 @@ module.exports = {
     compilers: [
       {
         version: "0.8.9"
-      },
-      {
-        version: "0.7.0"
-      },
-      
+      }      
     ]
   },
 };
