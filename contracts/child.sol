@@ -25,11 +25,10 @@ contract Child {
 
     uint24 public constant poolFee = 3000;
 
-    constructor(address _Parent, address _swapRouter) {
-        swapRouter = ISwapRouter(_swapRouter);
-        weth = swapRouter.WETH();
-        routerV3 = _swapRouter;
-        whitelist[_Parent] = true;
+    constructor(address _parent, address _router) {
+        swapRouter = ISwapRouter(_router);
+        routerV3 = _router;
+        whitelist[_parent] = true;
         owner = msg.sender;
     }
 
@@ -52,20 +51,18 @@ contract Child {
     }
 
     //buy
-    function swapEthToToken(address token)
+    function swapEthToToken(address token, uint256 amountIn)
         external
+        payable
         isWhitelist
-        returns (bytes[] memory results)
+        returns (bool flag)
     {
-        require(
-            IERC20(token).balanceOf(address(this)) >= 0,
-            "Insufficient Token"
-        );
+        require(address(this).balance >= amountIn, "Insufficient Eth");
 
         bytes[] memory datas;
 
         bytes memory data = abi.encode(
-            weth,
+            swapRouter.WETH(),
             token,
             poolFee,
             msg.sender,
@@ -77,14 +74,18 @@ contract Child {
 
         datas[0] = data;
 
-        results = swapRouter.multicall(datas);
+        bytes[] memory results = swapRouter.multicall{
+            value: address(this).balance
+        }(datas);
+        if (results.length > 0) return true;
+        else return false;
     }
 
     //sell
     function swapTokenToEth(address token)
         external
         isWhitelist
-        returns (bytes[] memory results)
+        returns (bool flag)
     {
         require(
             IERC20(token).balanceOf(address(this)) >= 0,
@@ -101,7 +102,7 @@ contract Child {
 
         bytes memory data = abi.encode(
             token,
-            weth,
+            swapRouter.WETH(),
             poolFee,
             msg.sender,
             block.timestamp,
@@ -112,7 +113,9 @@ contract Child {
 
         datas[0] = data;
 
-        results = swapRouter.multicall(datas);
+        bytes[] memory results = swapRouter.multicall(datas);
+        if (results.length > 0) return true;
+        else return false;
     }
 
     receive() external payable {}

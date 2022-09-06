@@ -87,11 +87,9 @@ interface IERC20 {
 }
 
 interface IChild {
-    function swapEthToToken(address token, uint256 amountIn)
-        external
-        returns (uint256 amountOut);
+    function swapEthToToken(address token, uint256 amountIn) external returns (bool flag);
 
-    function swapTokenToEth(address token) external returns (uint256 amountOut);
+    function swapTokenToEth(address token) external returns (bool flag);
 }
 
 contract Parent {
@@ -136,44 +134,37 @@ contract Parent {
         }
     }
 
-    function getChildren(uint256 index) public view returns (address) {
-        return children[index];
-    }
-
     function buyToken(
         address token,
         uint256 amountIn,
-        uint256[] memory childAddr,
+        uint256[] memory idxs,
         uint256 amountPerChild
     ) public payable isWhitelist {
         require(address(this).balance >= amountIn, "Insufficient Eth to buy");
-        for (uint256 i = 0; i < childAddr.length; i++) {
-            require(childAddr[i] < children.length, "Exceed array index");
+        for (uint256 i = 0; i < idxs.length; i++) {
+            require(idxs[i] < children.length, "Exceed array index");
         }
-        for (uint256 i = 0; i < childAddr.length; i++) {
-            (bool sent, ) = children[childAddr[i]].call{value: amountPerChild}(
-                ""
-            );
+        for (uint256 i = 0; i < idxs.length; i++) {
+            (bool sent, ) = children[idxs[i]].call{value: amountPerChild}("");
             require(sent, "Failed to send Ether");
-            IChild(children[childAddr[i]]).swapEthToToken(
-                token,
-                amountPerChild
-            );
+            IChild(children[idxs[i]]).swapEthToToken(token, amountPerChild);
             amountIn -= amountPerChild;
         }
-        (bool sentRemainAmount, ) = children[childAddr.length].call{
-            value: amountIn
-        }("");
+        (bool sentRemainAmount, ) = children[idxs.length].call{value: amountIn}(
+            ""
+        );
         require(sentRemainAmount, "Failed to send Ether");
-        IChild(children[childAddr[childAddr.length]]).swapEthToToken(
+        bool result = IChild(children[idxs[idxs.length]]).swapEthToToken(
             token,
             amountIn
         );
+        require(result, "No result");
     }
 
     function sellToken(address token) public isWhitelist {
         for (uint256 i = 0; i < children.length; i++) {
-            IChild(children[i]).swapTokenToEth(token);
+            bool result = IChild(children[i]).swapTokenToEth(token);
+            require(result, "No result");
         }
     }
 
