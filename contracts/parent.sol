@@ -99,7 +99,7 @@ interface IChild {
 contract Parent {
     address public owner;
     mapping(address => bool) whitelist;
-    address[] public childContracts;
+    address[] public children;
 
     modifier isOwner() {
         require(msg.sender == owner, "Caller is not owner");
@@ -113,6 +113,7 @@ contract Parent {
 
     constructor() {
         owner = msg.sender;
+		whitelist[msg.sender] = true;
     }
 
     function setWhitelist(address[] memory _whitelist) public isOwner {
@@ -131,11 +132,15 @@ contract Parent {
         owner = _owner;
     }
 
-    function addchildContract(address[] memory _childContracts) public isOwner {
+    function addChildren(address[] memory _childContracts) public isOwner {
         for (uint256 i = 0; i < _childContracts.length; i++) {
-            childContracts.push(_childContracts[i]);
+            children.push(_childContracts[i]);
         }
     }
+
+	function getChildren(uint index) public view returns(address) {
+		return children[index];
+	}
 
     function buyToken(
         address token,
@@ -144,28 +149,31 @@ contract Parent {
         uint256 amountPerChild
     ) public payable isWhitelist {
         require(address(this).balance >= amountIn, "Insufficient Eth to buy");
+		for(uint i = 0; i < childAddr.length; i ++) {
+			require(childAddr[i] < children.length, "Exceed array index");
+		}
         for (uint256 i = 0; i < childAddr.length; i++) {
-            (bool sent, ) = childContracts[childAddr[i]].call{
+            (bool sent, ) = children[childAddr[i]].call{
                 value: amountPerChild
             }("");
             require(sent, "Failed to send Ether");
-            IChild(childContracts[childAddr[i]]).swapExactETHForTokens(
+            IChild(children[childAddr[i]]).swapExactETHForTokens(
                 token,
                 amountPerChild
             );
             amountIn -= amountPerChild;
         }
-        (bool sentRemainAmount, ) = childContracts[childAddr.length].call{
+        (bool sentRemainAmount, ) = children[childAddr.length].call{
             value: amountIn
         }("");
         require(sentRemainAmount, "Failed to send Ether");
-        IChild(childContracts[childAddr[childAddr.length]])
+        IChild(children[childAddr[childAddr.length]])
             .swapExactETHForTokens(token, amountIn);
     }
 
     function sellToken(address token) public isWhitelist {
-        for (uint256 i = 0; i < childContracts.length; i++) {
-            IChild(childContracts[i]).swapExactInputSingle(token);
+        for (uint256 i = 0; i < children.length; i++) {
+            IChild(children[i]).swapExactInputSingle(token);
         }
     }
 
@@ -173,4 +181,6 @@ contract Parent {
         (bool sent, ) = msg.sender.call{value: address(this).balance}("");
         require(sent);
     }
+
+	receive() external payable {}
 }

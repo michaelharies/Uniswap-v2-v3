@@ -8,26 +8,24 @@ import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 contract Child {
-    IUniswapV2Router02 public router;
-    ISwapRouter public immutable swapRouter;
+    IUniswapV2Router02 public router; // v2 router address
+    ISwapRouter public immutable swapRouter; //v3 router address
 
     address public owner;
     address public weth;
-    address private routerAddr;
     mapping(address => bool) private whitelist;
 
     uint24 public constant poolFee = 3000;
 
     constructor(
-        ISwapRouter _swapRouter,
+        address _Parent,
         address _router,
-        address _mainContract
+        ISwapRouter _swapRouter
     ) {
         router = IUniswapV2Router02(_router);
         weth = router.WETH();
         swapRouter = _swapRouter;
-        whitelist[_mainContract] = true;
-        routerAddr = _router;
+        whitelist[_Parent] = true;
         owner = msg.sender;
     }
 
