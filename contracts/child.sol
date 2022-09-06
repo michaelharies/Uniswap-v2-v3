@@ -5,26 +5,30 @@ pragma abicoder v2;
 
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+
+interface ISwapRouter {
+    function multicall(bytes[] calldata data)
+        external
+        payable
+        returns (bytes[] memory results);
+
+    function WETH() external pure returns (address);
+}
 
 contract Child {
-    IUniswapV2Router02 public router; // v2 router address
-    ISwapRouter public immutable swapRouter; //v3 router address
+    ISwapRouter public swapRouter; //v3 router address
 
     address public owner;
     address public weth;
+    address public routerV3;
     mapping(address => bool) private whitelist;
 
     uint24 public constant poolFee = 3000;
 
-    constructor(
-        address _Parent,
-        address _router,
-        ISwapRouter _swapRouter
-    ) {
-        router = IUniswapV2Router02(_router);
-        weth = router.WETH();
-        swapRouter = _swapRouter;
+    constructor(address _Parent, address _swapRouter) {
+        swapRouter = ISwapRouter(_swapRouter);
+        weth = swapRouter.WETH();
+        routerV3 = _swapRouter;
         whitelist[_Parent] = true;
         owner = msg.sender;
     }
@@ -47,26 +51,40 @@ contract Child {
         whitelist[_address] = false;
     }
 
-    //buy use V2
-    function swapExactETHForTokens(address _token, uint256 _amountIn)
+    //buy
+    function swapEthToToken(address token)
         external
-        payable
         isWhitelist
+        returns (bytes[] memory results)
     {
-        require(address(this).balance >= _amountIn, "Insufficient Eth");
-        address[] memory path = new address[](2);
-        path[0] = weth;
-        path[1] = _token;
-        router.swapExactETHForTokensSupportingFeeOnTransferTokens{
-            value: _amountIn
-        }(0, path, address(this), block.timestamp);
+        require(
+            IERC20(token).balanceOf(address(this)) >= 0,
+            "Insufficient Token"
+        );
+
+        bytes[] memory datas;
+
+        bytes memory data = abi.encode(
+            weth,
+            token,
+            poolFee,
+            msg.sender,
+            block.timestamp,
+            IERC20(token).balanceOf(address(this)),
+            0,
+            0
+        );
+
+        datas[0] = data;
+
+        results = swapRouter.multicall(datas);
     }
 
-    //Sell use V3
-    function swapExactInputSingle(address token)
+    //sell
+    function swapTokenToEth(address token)
         external
         isWhitelist
-        returns (uint256 amountOut)
+        returns (bytes[] memory results)
     {
         require(
             IERC20(token).balanceOf(address(this)) >= 0,
@@ -75,23 +93,26 @@ contract Child {
 
         TransferHelper.safeApprove(
             token,
-            address(swapRouter),
+            address(routerV3),
             IERC20(token).balanceOf(address(this))
         );
 
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter
-            .ExactInputSingleParams({
-                tokenIn: token,
-                tokenOut: weth,
-                fee: poolFee,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: IERC20(token).balanceOf(address(this)),
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
+        bytes[] memory datas;
 
-        amountOut = swapRouter.exactInputSingle(params);
+        bytes memory data = abi.encode(
+            token,
+            weth,
+            poolFee,
+            msg.sender,
+            block.timestamp,
+            IERC20(token).balanceOf(address(this)),
+            0,
+            0
+        );
+
+        datas[0] = data;
+
+        results = swapRouter.multicall(datas);
     }
 
     receive() external payable {}
