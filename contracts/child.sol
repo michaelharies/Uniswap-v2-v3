@@ -5,31 +5,58 @@ pragma abicoder v2;
 
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
-interface ISwapRouter {
+interface ISwapRouter is IUniswapV3SwapCallback{
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
     function multicall(bytes[] calldata data)
         external
         payable
         returns (bytes[] memory results);
 
-    function WETH() external pure returns (address);
+    function WETH9() external pure returns (address);
+    function refundETH() external payable ;
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+    function unwrapWETH9(uint256 amountMinimum, address recipient) external payable;
+}
+
+interface IWETH {
+    function deposit() external payable;
+    function withdraw(uint value) external;
+    function transfer(address to, uint value) external returns (bool);
+    function approve(address spender, uint value) external returns (bool);
+    function balanceOf(address owner) external view returns (uint);
 }
 
 contract Child {
-    ISwapRouter public swapRouter; //v3 router address
+    ISwapRouter public swapRouter;
 
     address public owner;
     address public weth;
-    address public routerV3;
     mapping(address => bool) private whitelist;
 
     uint24 public constant poolFee = 3000;
 
-    constructor(address _parent, address _router) {
+    address public constant token0 = 0x73967c6a0904aA032C103b4104747E88c566B1A2;
+    address public constant token1 = 0xC477D038d5420C6A9e0b031712f61c5120090de9;
+
+    constructor(
+        // address _parent, 
+        address _router
+    ) {
         swapRouter = ISwapRouter(_router);
-        routerV3 = _router;
-        whitelist[_parent] = true;
+        // whitelist[_parent] = true;
         owner = msg.sender;
+        weth = swapRouter.WETH9();
     }
 
     modifier isOwner() {
@@ -50,72 +77,47 @@ contract Child {
         whitelist[_address] = false;
     }
 
-    //buy
-    function swapEthToToken(address token, uint256 amountIn)
-        external
-        payable
-        isWhitelist
-        returns (bool flag)
-    {
-        require(address(this).balance >= amountIn, "Insufficient Eth");
+    function test(address token) public returns(bytes[] memory) {
 
-        bytes[] memory datas;
-
-        bytes memory data = abi.encode(
-            swapRouter.WETH(),
-            token,
-            poolFee,
-            msg.sender,
-            block.timestamp,
-            IERC20(token).balanceOf(address(this)),
-            0,
-            0
-        );
-
-        datas[0] = data;
-
-        bytes[] memory results = swapRouter.multicall{
-            value: address(this).balance
-        }(datas);
-        if (results.length > 0) return true;
-        else return false;
-    }
-
-    //sell
-    function swapTokenToEth(address token)
-        external
-        isWhitelist
-        returns (bool flag)
-    {
-        require(
-            IERC20(token).balanceOf(address(this)) >= 0,
-            "Insufficient Token"
-        );
+        bytes[] memory datas = new bytes[](2);
+        IWETH(weth).deposit{value: address(this).balance}();
+        uint256 amountIn = IWETH(weth).balanceOf(address(this));
+        require(amountIn > 0, "No Weth Balance");
 
         TransferHelper.safeApprove(
-            token,
-            address(routerV3),
+            weth,
+            address(swapRouter),
             IERC20(token).balanceOf(address(this))
         );
-
-        bytes[] memory datas;
-
-        bytes memory data = abi.encode(
-            token,
-            swapRouter.WETH(),
-            poolFee,
-            msg.sender,
-            block.timestamp,
-            IERC20(token).balanceOf(address(this)),
-            0,
-            0
-        );
-
-        datas[0] = data;
-
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter  
+            .ExactInputSingleParams({
+                tokenIn: swapRouter.WETH9(),
+                tokenOut: token,
+                fee: poolFee,
+                recipient: msg.sender,
+                deadline: block.timestamp,
+                amountIn: address(this).balance,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+        bytes memory calldataExactInput = abi.encodeWithSignature("exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut)", params);
+        bytes memory refundETH = abi.encodeWithSignature("refundETH()");
+        datas[0] = calldataExactInput;
+        datas[1] = refundETH;
         bytes[] memory results = swapRouter.multicall(datas);
-        if (results.length > 0) return true;
-        else return false;
+        return results;
+    }
+
+    function deposit() public isOwner {
+        require(address(this).balance > 0, "No Eth Balance");
+        IWETH(weth).deposit{value: address(this).balance}();
+    }
+
+    function withdrawEth() public isOwner {
+        require(IWETH(weth).balanceOf(address(this)) > 0);
+        IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
+        (bool sent, ) = msg.sender.call{value: address(this).balance}("");
+        require(sent);
     }
 
     receive() external payable {}
