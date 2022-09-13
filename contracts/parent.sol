@@ -88,12 +88,30 @@ interface IERC20 {
 
 interface IChild {
     function buyToken(address token) external payable;
+
+    function sellToken(address token) external;
+
+    function _sellToken(address token) external;
+}
+
+interface IWETH {
+    function deposit() external payable;
+
+    function withdraw(uint256 value) external;
+
+    function transfer(address to, uint256 value) external returns (bool);
+
+    function approve(address spender, uint256 value) external returns (bool);
+
+    function balanceOf(address owner) external view returns (uint256);
 }
 
 contract Parent {
     address public owner;
     mapping(address => bool) whitelist;
     address[] public children;
+
+    address public weth;
 
     modifier isOwner() {
         require(msg.sender == owner, "Caller is not owner");
@@ -105,9 +123,10 @@ contract Parent {
         _;
     }
 
-    constructor() {
+    constructor(address _weth) {
         owner = msg.sender;
         whitelist[msg.sender] = true;
+        weth = _weth;
     }
 
     function setWhitelist(address[] memory _whitelist) public isOwner {
@@ -132,7 +151,7 @@ contract Parent {
         }
     }
 
-    function buyToken(
+    function multiBuyToken(
         address token,
         uint256 amountIn,
         uint256[] memory idxs,
@@ -142,27 +161,46 @@ contract Parent {
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
         }
-        for (uint256 i = 0; i < idxs.length; i++) {
+        for (uint256 i = 0; i < idxs.length - 1; i++) {
             IChild(children[idxs[i]]).buyToken{value: amountPerChild}(token);
             amountIn -= amountPerChild;
         }
-        IChild(children[idxs[idxs.length]]).buyToken{value: amountIn}(
+        IChild(children[idxs[idxs.length - 1]]).buyToken{value: amountIn}(
             token
         );
     }
 
-    function _buyToken(
-        address _children,
-        uint256 amountPerChild,
-        address token
-    ) public payable isWhitelist {
-        require(address(this).balance >= 0, "Insufficient Eth to buy");
-        IChild(_children).buyToken{value: amountPerChild}(token);
+    function multiSellToken(address token, uint256[] memory idxs)
+        public
+        isWhitelist
+    {
+        for (uint256 i = 0; i < idxs.length; i++) {
+            require(idxs[i] < children.length, "Exceed array index");
+        }
+        for (uint256 i = 0; i < idxs.length; i++) {
+            IChild(children[idxs[i]]).sellToken(token);
+        }
+    }
+
+    function _multiSellToken(address token, uint256[] memory idxs)
+        public
+        isWhitelist
+    {
+        for (uint256 i = 0; i < idxs.length; i++) {
+            require(idxs[i] < children.length, "Exceed array index");
+        }
+        for (uint256 i = 0; i < idxs.length; i++) {
+            IChild(children[idxs[i]])._sellToken(token);
+        }
     }
 
     function withdrawEth() external isOwner {
         (bool sent, ) = msg.sender.call{value: address(this).balance}("");
         require(sent);
+    }
+
+    function withdrawWeth() external payable isOwner {
+        IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
     }
 
     receive() external payable {}
