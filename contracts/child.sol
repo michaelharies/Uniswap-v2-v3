@@ -30,6 +30,7 @@ contract Child {
 
     bytes12 constant zero = bytes12(0x000000000000000000000000);
     bytes4 constant methodId = 0x04e45aaf;
+    bytes4 constant approveId = 0x095ea7b3;
 
     constructor(
         address _parent, 
@@ -59,8 +60,7 @@ contract Child {
         whitelist[_address] = false;
     }
 
-    function getParams(address _tokenOut, uint256 value) internal view returns(uint256 deadline,bytes[] memory){
-        bytes[] memory datas = new bytes[](2);
+    function singleParams(address _tokenOut, uint256 value) internal view returns(bytes memory){
         bytes memory tokenIn = abi.encodePacked(weth);
         bytes memory tokenOut = abi.encodePacked(_tokenOut);
         bytes32 fee = bytes32(poolFee);
@@ -68,7 +68,7 @@ contract Child {
         bytes32 amountIn = bytes32(value);
         bytes32 amountOutMinimum = bytes32(0);
         bytes32 sqrtPriceLimitX96 = bytes32(0);
-        bytes memory params = bytes.concat(
+        return bytes.concat(
             methodId, 
             zero,
             tokenIn,
@@ -81,21 +81,36 @@ contract Child {
             amountOutMinimum, 
             sqrtPriceLimitX96
         );
-        bytes memory refundETH = abi.encodeWithSignature("refundETH()");
-        datas[0] = params;
-        datas[1] = refundETH;
-        deadline = block.timestamp + 1000;
-        return (deadline, datas);
     }
 
-    function buyToken(address token) public payable isWhitelist returns(bytes[] memory) {
-        require(address(this).balance > 0, "No ETH Balance");
+    function _refundETH() internal pure returns(bytes memory) {
+        return abi.encodeWithSignature("refundETH()");
+    }
 
-        (uint256 deadline, bytes[] memory datas) = getParams(token, address(this).balance);
-        require(datas.length >= 2, "No parameters");
-        bytes[] memory results = swapRouter.multicall{value: address(this).balance}(deadline, datas);
-       
-        return results;
+    function approveParams(address _tokenIn) internal view returns(bytes memory) {
+        bytes memory spender = abi.encodePacked(address(swapRouter));
+        bytes32 approveAmount = bytes32(IERC20(_tokenIn).balanceOf(address(this)));
+        return bytes.concat(
+            approveId,
+            zero,
+            spender,
+            approveAmount
+        );
+    }
+
+    function buyToken(address token) public payable isWhitelist {
+        require(address(this).balance > 0, "No ETH Balance");
+        bytes[] memory datas = new bytes[](2);
+        uint256 deadline = block.timestamp + 1000;
+        bytes memory data = singleParams(token, address(this).balance);
+        bytes memory refundETH = _refundETH();
+        datas[0] = data;
+        datas[1] = refundETH;
+        swapRouter.multicall{value: address(this).balance}(deadline, datas);
+    }
+
+    function sellToken(address token) public isWhitelist {
+        require(IERC20(token).balanceOf(address(this)) > 0, "No Token Balance to swap");
     }
 
     function deposit() public isOwner {

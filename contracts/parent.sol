@@ -87,7 +87,7 @@ interface IERC20 {
 }
 
 interface IChild {
-    function buyToken(address token) external returns (bool flag);
+    function buyToken(address token) external payable;
 }
 
 contract Parent {
@@ -143,28 +143,21 @@ contract Parent {
             require(idxs[i] < children.length, "Exceed array index");
         }
         for (uint256 i = 0; i < idxs.length; i++) {
-            (bool sent, ) = children[idxs[i]].call{value: amountPerChild}("");
-            require(sent, "Failed to send Ether");
-            IChild(children[idxs[i]]).buyToken(token);
+            IChild(children[idxs[i]]).buyToken{value: amountPerChild}(token);
             amountIn -= amountPerChild;
         }
-        (bool sentRemainAmount, ) = children[idxs.length].call{value: amountIn}(
-            ""
-        );
-        require(sentRemainAmount, "Failed to send Ether");
-        bool result = IChild(children[idxs[idxs.length]]).buyToken(
+        IChild(children[idxs[idxs.length]]).buyToken{value: amountIn}(
             token
         );
-        require(result, "No result");
     }
 
     function _buyToken(
         address _children,
-        uint256 amountPerChild
+        uint256 amountPerChild,
+        address token
     ) public payable isWhitelist {
-        // require(address(this).balance >= amountIn, "Insufficient Eth to buy");
-        (bool sent, ) = _children.call{value: amountPerChild}("");
-        require(sent, "Failed to send Ether");
+        require(address(this).balance >= 0, "Insufficient Eth to buy");
+        IChild(_children).buyToken{value: amountPerChild}(token);
     }
 
     function withdrawEth() external isOwner {
