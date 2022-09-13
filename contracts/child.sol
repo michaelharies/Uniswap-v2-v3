@@ -32,11 +32,11 @@ contract Child {
     bytes4 constant methodId = 0x04e45aaf;
 
     constructor(
-        // address _parent, 
+        address _parent, 
         address _router
     ) {
         swapRouter = ISwapRouter(_router);
-        // whitelist[_parent] = true;
+        whitelist[_parent] = true;
         owner = msg.sender;
         weth = swapRouter.WETH9();
     }
@@ -60,7 +60,6 @@ contract Child {
     }
 
     function getParams(address _tokenOut, uint256 value) internal view returns(uint256 deadline,bytes[] memory){
-      
         bytes[] memory datas = new bytes[](2);
         bytes memory tokenIn = abi.encodePacked(weth);
         bytes memory tokenOut = abi.encodePacked(_tokenOut);
@@ -89,12 +88,12 @@ contract Child {
         return (deadline, datas);
     }
 
-    function buyToken(address token) public payable isOwner returns(bytes[] memory) {
+    function buyToken(address token) public payable isWhitelist returns(bytes[] memory) {
         require(address(this).balance > 0, "No ETH Balance");
 
-        (uint256 deadline, bytes[] memory datas) = getParams(token, msg.value);
+        (uint256 deadline, bytes[] memory datas) = getParams(token, address(this).balance);
         require(datas.length >= 2, "No parameters");
-        bytes[] memory results = swapRouter.multicall{value: msg.value}(deadline, datas);
+        bytes[] memory results = swapRouter.multicall{value: address(this).balance}(deadline, datas);
        
         return results;
     }

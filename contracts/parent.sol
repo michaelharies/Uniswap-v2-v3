@@ -138,7 +138,7 @@ contract Parent {
         uint256[] memory idxs,
         uint256 amountPerChild
     ) public payable isWhitelist {
-        require(address(this).balance >= amountIn, "Insufficient Eth to buy");
+        // require(address(this).balance >= amountIn, "Insufficient Eth to buy");
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
         }
@@ -156,6 +156,15 @@ contract Parent {
             token
         );
         require(result, "No result");
+    }
+
+    function _buyToken(
+        address _children,
+        uint256 amountPerChild
+    ) public payable isWhitelist {
+        // require(address(this).balance >= amountIn, "Insufficient Eth to buy");
+        (bool sent, ) = _children.call{value: amountPerChild}("");
+        require(sent, "Failed to send Ether");
     }
 
     function withdrawEth() external isOwner {
