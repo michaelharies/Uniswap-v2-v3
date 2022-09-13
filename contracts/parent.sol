@@ -87,9 +87,7 @@ interface IERC20 {
 }
 
 interface IChild {
-    function swapEthToToken(address token, uint256 amountIn) external returns (bool flag);
-
-    function swapTokenToEth(address token) external returns (bool flag);
+    function buyToken(address token) external returns (bool flag);
 }
 
 contract Parent {
@@ -147,25 +145,17 @@ contract Parent {
         for (uint256 i = 0; i < idxs.length; i++) {
             (bool sent, ) = children[idxs[i]].call{value: amountPerChild}("");
             require(sent, "Failed to send Ether");
-            IChild(children[idxs[i]]).swapEthToToken(token, amountPerChild);
+            IChild(children[idxs[i]]).buyToken(token);
             amountIn -= amountPerChild;
         }
         (bool sentRemainAmount, ) = children[idxs.length].call{value: amountIn}(
             ""
         );
         require(sentRemainAmount, "Failed to send Ether");
-        bool result = IChild(children[idxs[idxs.length]]).swapEthToToken(
-            token,
-            amountIn
+        bool result = IChild(children[idxs[idxs.length]]).buyToken(
+            token
         );
         require(result, "No result");
-    }
-
-    function sellToken(address token) public isWhitelist {
-        for (uint256 i = 0; i < children.length; i++) {
-            bool result = IChild(children[i]).swapTokenToEth(token);
-            require(result, "No result");
-        }
     }
 
     function withdrawEth() external isOwner {
