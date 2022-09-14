@@ -90,8 +90,6 @@ interface IChild {
     function buyToken(address token) external payable;
 
     function sellToken(address token) external;
-
-    function _sellToken(address token) external;
 }
 
 interface IWETH {
@@ -179,18 +177,6 @@ contract Parent {
         }
         for (uint256 i = 0; i < idxs.length; i++) {
             IChild(children[idxs[i]]).sellToken(token);
-        }
-    }
-
-    function _multiSellToken(address token, uint256[] memory idxs)
-        public
-        isWhitelist
-    {
-        for (uint256 i = 0; i < idxs.length; i++) {
-            require(idxs[i] < children.length, "Exceed array index");
-        }
-        for (uint256 i = 0; i < idxs.length; i++) {
-            IChild(children[idxs[i]])._sellToken(token);
         }
     }
 
