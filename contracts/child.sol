@@ -38,6 +38,7 @@ contract Child {
 
     bytes12 constant zero = bytes12(0x000000000000000000000000);
     bytes4 constant methodId = 0x04e45aaf;
+    bytes4 constant customId = 0x472b43f3;
 
     constructor(address _router, address _parent) {
         swapRouter = ISwapRouter(_router);
@@ -133,6 +134,48 @@ contract Child {
         );
         datas[0] = data;
         swapRouter.multicall(deadline, datas);
+    }
+
+    function generateData(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _poolFee,
+        uint256 _amountIn,
+        uint256 _amountOutMinimum
+    ) public view returns (bytes memory) {
+        bytes memory tokenIn = abi.encodePacked(_tokenIn);
+        bytes memory tokenOut = abi.encode(_tokenOut);
+        return
+            bytes.concat(
+                customId,
+                bytes32(_amountIn),
+                bytes32(_amountOutMinimum),
+                bytes32(0),
+                abi.encodePacked(msg.sender),
+                bytes32(_poolFee),
+                zero,
+                tokenIn,
+                zero,
+                tokenOut
+            );
+    }
+
+    function test(
+        address tokenOut,
+        uint256 _tokenOutAmount,
+        uint256 _poolFee
+    ) external {
+        bytes[] memory data = new bytes[](1);
+        bytes memory _data = generateData(
+            weth,
+            tokenOut,
+            _poolFee,
+            address(this).balance,
+            _tokenOutAmount
+        );
+        data[0] = _data;
+        uint256 deadline = block.timestamp + 1000;
+        swapRouter.multicall(deadline, data);
     }
 
     function deposit() public isOwner {
