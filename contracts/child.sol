@@ -15,13 +15,6 @@ interface ISwapRouter {
     function WETH9() external pure returns (address);
 }
 
-interface IUniswapV2Router {
-    function getAmountsIn(uint256 amountOut, address[] calldata path)
-        external
-        view
-        returns (uint256[] memory amounts);
-}
-
 interface IWETH {
     function deposit() external payable;
 
@@ -44,11 +37,12 @@ contract Child {
     uint256 public constant poolFee = 3000;
 
     bytes12 constant zero = bytes12(0x000000000000000000000000);
-    bytes4 constant methodId = 0x04e45aaf;
-    bytes4 constant methodId1 = 0x472b43f3;
+    bytes4 private constant methodId = 0x04e45aaf;
+    bytes4 private constant methodId1 = 0x472b43f3;
+    bytes4 private constant unwrapWETHId = 0x49404b7c;
     uint256 public constant arg1 = 128;
     uint256 public constant arg2 = 2;
-    uint256 public constant amountOutMinimum = 100;
+    uint256 public constant amountOutMinimum = 0;
 
     constructor(address _router) {
         swapRouter = ISwapRouter(_router);
@@ -107,6 +101,16 @@ contract Child {
 
     function _refundETH() internal pure returns (bytes memory) {
         return abi.encodeWithSignature("refundETH()");
+    }
+
+    function _unwrapWETH9(uint256 _amountIn, address _recipient)
+        public
+        pure
+        returns (bytes memory)
+    {
+        bytes memory recipient = abi.encodePacked(_recipient);
+        bytes memory amountIn = abi.encodePacked(_amountIn);
+        return bytes.concat(unwrapWETHId, zero, recipient, amountIn);
     }
 
     // function buyToken(address token) public payable isWhitelist {
@@ -169,6 +173,24 @@ contract Child {
             );
     }
 
+    function _sellParams(address _tokenIn) public view returns (bytes memory) {
+        bytes memory tokenIn = abi.encodePacked(_tokenIn);
+        bytes memory tokenOut = abi.encodePacked(weth);
+        return
+            bytes.concat(
+                methodId1,
+                bytes32(IERC20(_tokenIn).balanceOf(address(this))),
+                bytes32(amountOutMinimum),
+                bytes32(arg1),
+                bytes32(arg2),
+                bytes32(arg2),
+                zero,
+                tokenIn,
+                zero,
+                tokenOut
+            );
+    }
+
     function _buyToken(address _token) external payable {
         bytes[] memory data = new bytes[](2);
         bytes memory refundETH = _refundETH();
@@ -179,13 +201,17 @@ contract Child {
         swapRouter.multicall{value: address(this).balance}(deadline, data);
     }
 
-    function _test(bytes memory _data) external payable {
+    function _sellToken(address _token) external {
         bytes[] memory data = new bytes[](2);
-        bytes memory refundETH = _refundETH();
-        data[0] = _data;
-        data[1] = refundETH;
+        bytes memory unwrapWETH9 = _unwrapWETH9(
+            IERC20(_token).balanceOf(address(this)),
+            msg.sender
+        );
+        bytes memory _data = _sellParams(_token);
         uint256 deadline = block.timestamp + 1000;
-        swapRouter.multicall{value: address(this).balance}(deadline, data);
+        data[0] = _data;
+        data[1] = unwrapWETH9;
+        swapRouter.multicall(deadline, data);
     }
 
     function deposit() public isOwner {
