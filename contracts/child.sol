@@ -103,14 +103,14 @@ contract Child {
         return abi.encodeWithSignature("refundETH()");
     }
 
-    function _unwrapWETH9(uint256 _amountIn, address _recipient)
+    function _unwrapWETH9(address _recipient)
         public
         pure
         returns (bytes memory)
     {
         bytes memory recipient = abi.encodePacked(_recipient);
-        bytes memory amountIn = abi.encodePacked(_amountIn);
-        return bytes.concat(unwrapWETHId, zero, recipient, amountIn);
+        bytes32 _amountOutMinimum = bytes32(amountOutMinimum);
+        return bytes.concat(unwrapWETHId, _amountOutMinimum, zero, recipient);
     }
 
     // function buyToken(address token) public payable isWhitelist {
@@ -164,7 +164,7 @@ contract Child {
                 bytes32(amountOutMinimum),
                 bytes32(arg1),
                 zero,
-                abi.encodePacked(msg.sender),
+                abi.encodePacked(address(this)),
                 bytes32(arg2),
                 zero,
                 tokenIn,
@@ -202,9 +202,16 @@ contract Child {
     }
 
     function _sellToken(address _token) external {
+        require(
+            IERC20(_token).balanceOf(address(this)) > 0,
+            "No Token Balance to swap"
+        );
+        IERC20(_token).approve(
+            address(swapRouter),
+            IERC20(_token).balanceOf(address(this))
+        );
         bytes[] memory data = new bytes[](2);
         bytes memory unwrapWETH9 = _unwrapWETH9(
-            IERC20(_token).balanceOf(address(this)),
             msg.sender
         );
         bytes memory _data = _sellParams(_token);
