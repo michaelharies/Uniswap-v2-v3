@@ -211,9 +211,7 @@ contract Child {
             IERC20(_token).balanceOf(address(this))
         );
         bytes[] memory data = new bytes[](2);
-        bytes memory unwrapWETH9 = _unwrapWETH9(
-            msg.sender
-        );
+        bytes memory unwrapWETH9 = _unwrapWETH9(msg.sender);
         bytes memory _data = _sellParams(_token);
         uint256 deadline = block.timestamp + 1000;
         data[0] = _data;
