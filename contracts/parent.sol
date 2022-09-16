@@ -87,9 +87,7 @@ interface IERC20 {
 }
 
 interface IChild {
-    function buyToken(address token) external payable;
-
-    function sellToken(address token) external;
+    function swapToken(address tokenIn, address tokenOut) external;
 }
 
 interface IWETH {
@@ -121,10 +119,9 @@ contract Parent {
         _;
     }
 
-    constructor(address _weth) {
+    constructor() {
         owner = msg.sender;
         whitelist[msg.sender] = true;
-        weth = _weth;
     }
 
     function setWhitelist(address[] memory _whitelist) public isOwner {
@@ -143,6 +140,10 @@ contract Parent {
         owner = _owner;
     }
 
+    function setWeth(address _weth) public isOwner {
+        weth = _weth;
+    }
+
     function addChildren(address[] memory _childContracts) public isOwner {
         for (uint256 i = 0; i < _childContracts.length; i++) {
             children.push(_childContracts[i]);
@@ -150,34 +151,45 @@ contract Parent {
     }
 
     function multiBuyToken(
-        address token,
+        address tokenIn,
+        address tokenOut,
         uint256 amountIn,
         uint256[] memory idxs,
         uint256 amountPerChild
-    ) public payable isWhitelist {
-        // require(address(this).balance >= amountIn, "Insufficient Eth to buy");
+    ) public isWhitelist {
+        require(
+            IERC20(tokenIn).balanceOf(address(this)) >= amountIn,
+            "Insufficient Eth to buy"
+        );
+        require(amountIn >= amountPerChild * idxs.length, "Not Correct amount");
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
         }
         for (uint256 i = 0; i < idxs.length - 1; i++) {
-            IChild(children[idxs[i]]).buyToken{value: amountPerChild}(token);
+            IERC20(tokenIn).transfer(children[idxs[i]], amountPerChild);
+            IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut);
             amountIn -= amountPerChild;
         }
-        IChild(children[idxs[idxs.length - 1]]).buyToken{value: amountIn}(
-            token
-        );
+        IERC20(tokenIn).transfer(children[idxs[idxs.length - 1]], amountIn);
+        IChild(children[idxs[idxs.length - 1]]).swapToken(tokenIn, tokenOut);
     }
 
-    function multiSellToken(address token, uint256[] memory idxs)
-        public
-        isWhitelist
-    {
+    function multiSellToken(
+        address tokenIn,
+        address tokenOut,
+        uint256[] memory idxs
+    ) public isWhitelist {
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
         }
         for (uint256 i = 0; i < idxs.length; i++) {
-            IChild(children[idxs[i]]).sellToken(token);
+            IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut);
         }
+    }
+
+    function deposit() public isOwner {
+        require(address(this).balance > 0, "No Eth Balance");
+        IWETH(weth).deposit{value: address(this).balance}();
     }
 
     function withdrawEth() external isOwner {
