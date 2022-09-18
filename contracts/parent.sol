@@ -3,7 +3,7 @@
 pragma solidity ^0.8.7;
 
 interface IChild {
-    function swapToken(address tokenIn, address tokenOut) external;
+    function swapToken(address tokenIn, address tokenOut, uint256 percent) external;
 }
 
 interface IERC20 {
@@ -20,10 +20,11 @@ interface IERC20 {
 
 contract Parent {
     address public  owner;
-    mapping(address => bool) whitelist;
     address[] public children;
-
     address public weth;
+    uint256 public constant percentForBuy = 100;
+    mapping(address => bool) whitelist;
+
 
     modifier isOwner() {
         require(msg.sender == owner, "Caller is not owner");
@@ -88,19 +89,27 @@ contract Parent {
 
         for (uint256 i = 0; i < cnt - 1; i++) {
             IERC20(tokenIn).transfer(children[idxs[i]], amountPerChild);
-            IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut);
+            IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut, percentForBuy);
             amountIn -= amountPerChild;
         }
         IERC20(tokenIn).transfer(children[idxs[cnt - 1]], amountIn);
-        IChild(children[idxs[cnt - 1]]).swapToken(tokenIn, tokenOut);
+        IChild(children[idxs[cnt - 1]]).swapToken(tokenIn, tokenOut, percentForBuy);
     }
 
-    function multiSellToken(address tokenIn, address tokenOut, uint256[] calldata idxs) external isWhitelist {
+    function multiSellToken(
+        address tokenIn, 
+        address tokenOut, 
+        uint256[] calldata idxs,
+        uint256 percent
+    ) 
+        external 
+        isWhitelist 
+    {
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
         }
         for(uint256 i = 0; i < idxs.length; i ++) {
-            IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut);
+            IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut, percent);
         }
     }
 

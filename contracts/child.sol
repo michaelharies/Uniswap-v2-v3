@@ -41,7 +41,11 @@ contract Child {
     uint256 public constant arg2 = 2;
     uint256 public constant amountOutMinimum = 0;
 
-    constructor(address _router, address _parent) {
+    constructor(
+        address _router,
+        address _parent
+    )
+    {
         swapRouter = ISwapRouter(_router);
         whitelist[msg.sender] = true;
         whitelist[_parent] = true;
@@ -59,15 +63,25 @@ contract Child {
         _;
     }
 
-    function setWhitelist(address _newAddr) external isOwner {
+    function setWhitelist(
+        address _newAddr
+    ) 
+        external isOwner 
+    {
         whitelist[_newAddr] = true;
     }
 
-    function remoteWhitelist(address _address) external isOwner {
+    function remoteWhitelist(
+        address _address
+    ) 
+        external isOwner 
+    {
         whitelist[_address] = false;
     }
 
-    function _unwrapWETH9(address _recipient)
+    function _unwrapWETH9(
+        address _recipient
+    )
         internal
         pure
         returns (bytes memory)
@@ -77,7 +91,11 @@ contract Child {
         return bytes.concat(unwrapWETHId, _amountOutMinimum, zero, recipient);
     }
 
-    function getParams(address _tokenIn, address _tokenOut)
+    function getParams(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amountIn
+    )
         internal
         view
         returns (bytes memory)
@@ -96,7 +114,7 @@ contract Child {
         return
             bytes.concat(
                 methodId,
-                bytes32(IERC20(_tokenIn).balanceOf(address(this))),
+                bytes32(_amountIn),
                 bytes32(amountOutMinimum),
                 bytes32(arg1),
                 zero,
@@ -109,10 +127,16 @@ contract Child {
             );
     }
 
-    function swapToken(address _tokenIn, address _tokenOut)
+    function swapToken(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _percent
+    )
         external
         isWhitelist
     {
+        uint256 amountIn = IERC20(_tokenIn).balanceOf(address(this)) * _percent / 10 ** 2;
+
         require(
             IERC20(_tokenIn).balanceOf(address(this)) > 0,
             "No Token Balance to swap"
@@ -120,13 +144,13 @@ contract Child {
 
         IERC20(_tokenIn).approve(
             address(swapRouter),
-            IERC20(_tokenIn).balanceOf(address(this))
+            amountIn
         );
 
         bytes[] memory data = new bytes[](2);
         bytes memory unwrapWETH9 = _unwrapWETH9(msg.sender);
-        bytes memory _data = getParams(_tokenIn, _tokenOut);
-
+        bytes memory _data = getParams(_tokenIn, _tokenOut, amountIn);
+        
         uint256 deadline = block.timestamp + 1000;
 
         data[0] = _data;
