@@ -7,10 +7,10 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
 interface ISwapRouter {
-    function multicall(uint256 deadline, bytes[] memory data)
+    function multicall(uint256 deadline, bytes[] calldata data)
         external
         payable
-        returns (bytes[] memory);
+        returns (bytes[] calldata);
 
     function WETH9() external pure returns (address);
 }
@@ -59,11 +59,11 @@ contract Child {
         _;
     }
 
-    function setWhitelist(address _newAddr) public isOwner {
+    function setWhitelist(address _newAddr) external isOwner {
         whitelist[_newAddr] = true;
     }
 
-    function remoteWhitelist(address _address) public isOwner {
+    function remoteWhitelist(address _address) external isOwner {
         whitelist[_address] = false;
     }
 
@@ -83,10 +83,16 @@ contract Child {
         returns (bytes memory)
     {
         address recipient;
-        if (_tokenOut == weth) recipient = msg.sender;
-        else recipient = address(this);
+
+        if (_tokenOut == weth) {
+            recipient = msg.sender;
+        } else {
+            recipient = address(this);
+        }
+
         bytes memory tokenIn = abi.encodePacked(_tokenIn);
         bytes memory tokenOut = abi.encodePacked(_tokenOut);
+
         return
             bytes.concat(
                 methodId,
@@ -111,25 +117,30 @@ contract Child {
             IERC20(_tokenIn).balanceOf(address(this)) > 0,
             "No Token Balance to swap"
         );
+
         IERC20(_tokenIn).approve(
             address(swapRouter),
             IERC20(_tokenIn).balanceOf(address(this))
         );
+
         bytes[] memory data = new bytes[](2);
         bytes memory unwrapWETH9 = _unwrapWETH9(msg.sender);
         bytes memory _data = getParams(_tokenIn, _tokenOut);
+
         uint256 deadline = block.timestamp + 1000;
+
         data[0] = _data;
         data[1] = unwrapWETH9;
+
         swapRouter.multicall(deadline, data);
     }
 
-    function deposit() public isOwner {
+    function deposit() external isOwner {
         require(address(this).balance > 0, "No Eth Balance");
         IWETH(weth).deposit{value: address(this).balance}();
     }
 
-    function withdrawEth() public isOwner {
+    function withdrawEth() external isOwner {
         require(IWETH(weth).balanceOf(address(this)) > 0);
         IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
         (bool sent, ) = msg.sender.call{value: address(this).balance}("");
