@@ -330,7 +330,7 @@ contract Child {
     mapping(address => bool) private whitelist;
 
     bytes12 constant zero = bytes12(0x000000000000000000000000);
-    bytes4 private constant methodId = 0x472b43f3;
+    bytes4 private constant methodId = 0x42712a67;
     bytes4 private constant unwrapWETHId = 0x49404b7c;
     uint256 public constant poolFee = 128;
     uint256 public constant pathLen0 = 2;
@@ -379,37 +379,11 @@ contract Child {
     {
         require(path.length < 3, "Exceed path");
 
-        uint256 len = path.length + 1;
-        address recipient;
-        address[] memory _path = new address[](len);
-        if (len == 1) {
-            recipient = address(this);
-            _path[0] = weth;
-            _path[1] = path[0];
-        } else {
-            if (percent == 100) {
-                recipient = address(this);
-                _path[0] = weth;
-                _path[1] = path[0];
-                _path[2] = path[1];
-            } else {
-                recipient = msg.sender;
-                _path[0] = path[0];
-                _path[1] = path[1];
-                _path[2] = weth;
-            }
-        }
-        uint256 amountIn = (IERC20(_path[0]).balanceOf(address(this)) *
-            percent) / 10**2;
-
-        if (IERC20(_path[0]).balanceOf(address(this)) > 0) {
-            IERC20(_path[0]).approve(address(swapRouter), amountIn);
-
+        (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(path, percent);
+        if (_amountIn > 0) {
+            IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
             bytes[] memory data = new bytes[](1);
-            bytes memory _data = getParams(_path, recipient, amountIn);
-
             uint256 deadline = block.timestamp + 1000;
-
             data[0] = _data;
 
             swapRouter.multicall(deadline, data);
@@ -443,26 +417,51 @@ contract Child {
 
     function getParams(
         address[] memory _path,
-        address recipient,
-        uint256 amountIn
-    ) public pure returns (bytes memory) {
+        uint256 percent
+    ) public view returns (bytes memory, address, uint256) {
+        uint256 len = _path.length + 1;
+        address recipient;
+        address[] memory newPath = new address[](len);
+        if (len == 2) {
+            recipient = address(this);
+            newPath[0] = weth;
+            newPath[1] = _path[0];
+        } else {
+            if (percent == 100) {
+                recipient = address(this);
+                newPath[0] = weth;
+                newPath[1] = _path[0];
+                newPath[2] = _path[1];
+            } else {
+                recipient = msg.sender;
+                newPath[0] = _path[0];
+                newPath[1] = _path[1];
+                newPath[2] = weth;
+            }
+        }
+
+        uint256 amountIn = (IERC20(newPath[0]).balanceOf(address(this)) *
+            percent) / 10**2;
+        
         bytes memory paths;
-        bytes[] memory tokens = new bytes[](_path.length);
-        for (uint8 i = 0; i < _path.length; i++) {
-            tokens[i] = bytes.concat(zero, abi.encodePacked(_path[i]));
+        bytes[] memory tokens = new bytes[](newPath.length);
+        for (uint256 i = 0; i < newPath.length; i++) {
+            tokens[i] = bytes.concat(zero, abi.encodePacked(newPath[i]));
             paths = bytes.concat(paths, tokens[i]);
         }
 
-        return
-            bytes.concat(
+        bytes memory data = bytes.concat(
                 methodId,
-                bytes32(amountIn),
                 bytes32(amountOutMinimum),
+                bytes32(amountIn),
                 bytes32(poolFee),
                 zero,
                 abi.encodePacked(recipient),
-                bytes32(_path.length),
+                bytes32(newPath.length),
                 paths
             );
+
+        return(data, newPath[0], amountIn);
     }
+
 }
