@@ -5,11 +5,7 @@ pragma solidity ^0.8.7;
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 interface IChild {
-    function swapToken(
-        address tokenIn,
-        address tokenOut,
-        uint256 percent
-    ) external;
+    function swapToken(address tokenIn, address tokenOut, uint256 percent) external;
 }
 
 interface IERC20 {
@@ -25,13 +21,15 @@ interface IERC20 {
 }
 
 contract Parent {
+    
     IUniswapV2Router02 public router;
 
-    address public owner;
+    address public  owner;
     address[] public children;
     address public weth;
     uint256 public constant percentForBuy = 100;
     mapping(address => bool) whitelist;
+
 
     modifier isOwner() {
         require(msg.sender == owner, "Caller is not owner");
@@ -80,28 +78,25 @@ contract Parent {
         address tokenIn,
         address tokenOut,
         uint256 amountIn,
-        uint256[] calldata idxs,
-        uint256 amountPerChild
+        uint256 amountPerChild,
+        uint256[] calldata idxs
     ) external isWhitelist {
         uint256 tokenBalance = IERC20(tokenIn).balanceOf(address(this));
         require(tokenBalance > amountPerChild, "Invalid input amount");
-
+        
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
         }
 
         uint256 cnt;
-        if (amountIn > tokenBalance) amountIn = tokenBalance;
+        if(amountIn > tokenBalance)
+            amountIn = tokenBalance;
         cnt = amountIn / amountPerChild;
-        if (cnt > idxs.length) cnt = idxs.length;
+        if(cnt > idxs.length) cnt = idxs.length;
 
         for (uint256 i = 0; i < cnt; i++) {
             IERC20(tokenIn).transfer(children[idxs[i]], amountPerChild);
-            IChild(children[idxs[i]]).swapToken(
-                tokenIn,
-                tokenOut,
-                percentForBuy
-            );
+            IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut, percentForBuy);
             amountIn -= amountPerChild;
         }
 
@@ -112,6 +107,7 @@ contract Parent {
     function multiBuyTokenForExactAmountOut(
         address tokenIn,
         address tokenOut,
+        uint256 amountIn,
         uint256 amountOut,
         uint256[] calldata idxs
     ) external isWhitelist {
@@ -122,36 +118,40 @@ contract Parent {
         address[] memory path = new address[](2);
         path[0] = tokenIn;
         path[1] = tokenOut;
-        uint256 amountIn = _getAmuntsIn(amountOut, path);
+        uint256 amountPerChild = _getAmuntsIn(amountOut, path);
 
         uint256 tokenBalance = IERC20(tokenIn).balanceOf(address(this));
-        require(tokenBalance > amountIn, "Invalid input amount");
+        require(tokenBalance > amountPerChild, "Invalid input amount");
 
-        uint256 cnt = tokenBalance / amountIn;
-        if (cnt > idxs.length) cnt = idxs.length;
+        uint256 cnt;
+        if(amountIn > tokenBalance)
+            amountIn = tokenBalance;
+        cnt = amountIn / amountPerChild;
+        if(cnt > idxs.length) cnt = idxs.length;
 
         for (uint256 i = 0; i < cnt; i++) {
-            IERC20(tokenIn).transfer(children[idxs[i]], amountIn);
-            IChild(children[idxs[i]]).swapToken(
-                tokenIn,
-                tokenOut,
-                percentForBuy
-            );
+            IERC20(tokenIn).transfer(children[idxs[i]], amountPerChild);
+            IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut, percentForBuy);
+            amountIn -= amountPerChild;
         }
-        // IERC20(tokenIn).transfer(children[idxs[cnt - 1]], amountIn);
-        // IChild(children[idxs[cnt - 1]]).swapToken(tokenIn, tokenOut, percentForBuy);
+        
+        IERC20(tokenIn).transfer(children[idxs[cnt]], amountIn);
+        IChild(children[idxs[cnt]]).swapToken(tokenIn, tokenOut, percentForBuy);
     }
 
     function multiSellToken(
-        address tokenIn,
-        address tokenOut,
+        address tokenIn, 
+        address tokenOut, 
         uint256[] calldata idxs,
         uint256 percent
-    ) external isWhitelist {
+    ) 
+        external 
+        isWhitelist 
+    {
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
         }
-        for (uint256 i = 0; i < idxs.length; i++) {
+        for(uint256 i = 0; i < idxs.length; i ++) {
             IChild(children[idxs[i]]).swapToken(tokenIn, tokenOut, percent);
         }
     }
@@ -173,11 +173,7 @@ contract Parent {
 
     receive() external payable {}
 
-    function _getAmuntsIn(uint256 amountOut, address[] memory path)
-        internal
-        view
-        returns (uint256 amountIn)
-    {
+    function _getAmuntsIn(uint256 amountOut, address[] memory path) internal view returns(uint256 amountIn) {
         uint256[] memory amounts = router.getAmountsIn(amountOut, path);
         require(amounts[0] > 0, "No liquidity pool");
         amountIn = amounts[0];
