@@ -329,12 +329,16 @@ contract Child {
 
     bytes12 constant zero = bytes12(0x000000000000000000000000);
     bytes4 private constant methodId = 0x472b43f3;
+    bytes4 private constant _methodId = 0x42712a67;
     bytes4 private constant unwrapWETHId = 0x49404b7c;
     uint256 public constant arg1 = 128;
-    uint256 public constant arg2 = 2;
+    uint256 public constant pathLen0 = 2;
+    uint256 public constant pathLen1 = 3;
     uint256 public constant amountOutMinimum = 0;
 
-    constructor(address _parent) {
+    constructor(
+        address _parent
+    ) {
         swapRouter = ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
         whitelist[msg.sender] = true;
         whitelist[_parent] = true;
@@ -371,20 +375,19 @@ contract Child {
     }
 
     function getParams(
-        address _tokenIn,
-        address _tokenOut,
+        address[] memory _path,
         uint256 _amountIn
     ) internal view returns (bytes memory) {
         address recipient;
 
-        if (_tokenOut == weth) {
+        if (_path[1] == weth) {
             recipient = msg.sender;
         } else {
             recipient = address(this);
         }
 
-        bytes memory tokenIn = abi.encodePacked(_tokenIn);
-        bytes memory tokenOut = abi.encodePacked(_tokenOut);
+        bytes memory tokenIn = abi.encodePacked(_path[0]);
+        bytes memory tokenOut = abi.encodePacked(_path[1]);
 
         return
             bytes.concat(
@@ -394,7 +397,7 @@ contract Child {
                 bytes32(arg1),
                 zero,
                 abi.encodePacked(recipient),
-                bytes32(arg2),
+                bytes32(pathLen0),
                 zero,
                 tokenIn,
                 zero,
@@ -403,30 +406,25 @@ contract Child {
     }
 
     function swapToken(
-        address _tokenIn,
-        address _tokenOut,
+        address[] memory path,
         uint256 _percent
     ) external isWhitelist {
-        uint256 amountIn = (IERC20(_tokenIn).balanceOf(address(this)) *
+        uint256 amountIn = (IERC20(path[0]).balanceOf(address(this)) *
             _percent) / 10**2;
 
-        require(
-            IERC20(_tokenIn).balanceOf(address(this)) > 0,
-            "No Token Balance to swap"
-        );
+        if(IERC20(path[0]).balanceOf(address(this)) > 0) {
+            IERC20(path[0]).approve(address(swapRouter), amountIn);
 
-        IERC20(_tokenIn).approve(address(swapRouter), amountIn);
+            bytes[] memory data = new bytes[](1);
+            bytes memory _data = getParams(path, amountIn);
 
-        bytes[] memory data = new bytes[](2);
-        bytes memory unwrapWETH9 = _unwrapWETH9(msg.sender);
-        bytes memory _data = getParams(_tokenIn, _tokenOut, amountIn);
+            uint256 deadline = block.timestamp + 1000;
 
-        uint256 deadline = block.timestamp + 1000;
+            data[0] = _data;
 
-        data[0] = _data;
-        data[1] = unwrapWETH9;
+            swapRouter.multicall(deadline, data);
+        }
 
-        swapRouter.multicall(deadline, data);
     }
 
     function deposit() external isOwner {
@@ -445,4 +443,46 @@ contract Child {
     }
 
     receive() external payable {}
+
+
+
+    function _getParams(
+        address[] memory path,
+        uint256 _min
+    ) public view returns (bytes memory) {
+
+        bytes[] memory tokens = new bytes[](path.length);
+        for(uint8 i = 0; i < path.length; i ++) {
+            tokens[i] = bytes.concat(zero, abi.encodePacked(path[i]));
+        }
+        uint256 _amountIn = IERC20(path[0]).balanceOf(address(this));
+
+        bytes memory paths = bytes.concat(
+            tokens[0], tokens[1], tokens[2]
+        );
+
+        return
+            bytes.concat(
+                _methodId,
+                bytes32(_min),
+                bytes32(_amountIn),
+                bytes32(arg1),
+                zero,
+                abi.encodePacked(address(this)),
+                bytes32(pathLen1),
+                paths
+            );
+    }
+
+    function _swapToken(address[] memory path, uint256 min) public {
+        uint256 deadline = block.timestamp + 10000;
+        uint256 amountIn = IWETH(weth).balanceOf(address(this));
+        IWETH(weth).approve(address(swapRouter), amountIn);
+        bytes memory _data = _getParams(path, min);
+        bytes[] memory data = new bytes[](1);
+        data[0] = _data;
+        swapRouter.multicall(deadline, data);
+    }
+
+
 }
