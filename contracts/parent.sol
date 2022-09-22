@@ -5,7 +5,7 @@ pragma solidity ^0.8.7;
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 interface IChild {
-    function swapToken(address[] memory path, uint256 percent) external;
+    function swapToken(address[] memory path, uint256 percent, bool flag) external;
 }
 
 interface IERC20 {
@@ -80,7 +80,7 @@ contract Parent {
     ) external isWhitelist {
         require(path.length < 3, "Exceed path");
         uint256 tokenBalance = IERC20(weth).balanceOf(address(this));
-        require(tokenBalance > amountPerChild, "Invalid input amount");
+        require(tokenBalance > amountPerChild, "Invalid input amount for Child");
 
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
@@ -91,14 +91,14 @@ contract Parent {
         cnt = amountIn / amountPerChild;
         if (cnt > idxs.length) cnt = idxs.length;
 
-        for (uint256 i = 0; i < cnt; i++) {
+        for (uint256 i = 0; i < cnt-1; i++) {
             IERC20(weth).transfer(children[idxs[i]], amountPerChild);
-            IChild(children[idxs[i]]).swapToken(path, percentForBuy);
+            IChild(children[idxs[i]]).swapToken(path, percentForBuy, true);
             amountIn -= amountPerChild;
         }
 
-        IERC20(weth).transfer(children[idxs[cnt]], amountIn);
-        IChild(children[idxs[cnt]]).swapToken(path, percentForBuy);
+        IERC20(weth).transfer(children[idxs[cnt-1]], amountIn);
+        IChild(children[idxs[cnt-1]]).swapToken(path, percentForBuy, true);
     }
 
     function multiBuyTokenForExactAmountOut(
@@ -121,14 +121,14 @@ contract Parent {
         cnt = amountIn / amountPerChild;
         if (cnt > idxs.length) cnt = idxs.length;
 
-        for (uint256 i = 0; i < cnt; i++) {
+        for (uint256 i = 0; i < cnt-1 ; i++) {
             IERC20(weth).transfer(children[idxs[i]], amountPerChild);
-            IChild(children[idxs[i]]).swapToken(path, percentForBuy);
+            IChild(children[idxs[i]]).swapToken(path, percentForBuy, true);
             amountIn -= amountPerChild;
         }
 
-        IERC20(weth).transfer(children[idxs[cnt]], amountIn);
-        IChild(children[idxs[cnt]]).swapToken(path, percentForBuy);
+        IERC20(weth).transfer(children[idxs[cnt-1]], amountIn);
+        IChild(children[idxs[cnt-1]]).swapToken(path, percentForBuy,true);
     }
 
     function multiSellToken(
@@ -141,7 +141,7 @@ contract Parent {
             require(idxs[i] < children.length, "Exceed array index");
         }
         for (uint256 i = 0; i < idxs.length; i++) {
-            IChild(children[idxs[i]]).swapToken(path, percent);
+            IChild(children[idxs[i]]).swapToken(path, percent, false);
         }
     }
 

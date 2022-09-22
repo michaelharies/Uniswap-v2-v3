@@ -330,12 +330,14 @@ contract Child {
     mapping(address => bool) private whitelist;
 
     bytes12 constant zero = bytes12(0x000000000000000000000000);
-    bytes4 private constant methodId = 0x42712a67;
+    bytes4 private constant buyMethodId = 0x42712a67;
+    bytes4 private constant sellMethodId = 0x472b43f3;
     bytes4 private constant unwrapWETHId = 0x49404b7c;
     uint256 public constant poolFee = 128;
     uint256 public constant pathLen0 = 2;
     uint256 public constant pathLen1 = 3;
     uint256 public constant amountOutMinimum = 100;
+    uint256 public constant MAX_VALUE = 2**256 -1;
 
     constructor(address _parent) {
         swapRouter = ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
@@ -343,6 +345,7 @@ contract Child {
         whitelist[_parent] = true;
         owner = msg.sender;
         weth = swapRouter.WETH9();
+        IWETH(weth).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, MAX_VALUE);
     }
 
     modifier isOwner() {
@@ -373,15 +376,16 @@ contract Child {
         return bytes.concat(unwrapWETHId, _amountOutMinimum, zero, recipient);
     }
 
-    function swapToken(address[] memory path, uint256 percent)
+    function swapToken(address[] memory path, uint256 percent, bool flag)
         external
         isWhitelist
     {
         require(path.length < 3, "Exceed path");
 
-        (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(path, percent);
+        (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(path, percent, flag);
         if (_amountIn > 0) {
-            IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
+            if(!flag)
+                IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
             bytes[] memory data = new bytes[](1);
             uint256 deadline = block.timestamp + 1000;
             data[0] = _data;
@@ -417,7 +421,8 @@ contract Child {
 
     function getParams(
         address[] memory _path,
-        uint256 percent
+        uint256 _percent,
+        bool _flag
     ) public view returns (bytes memory, address, uint256) {
         uint256 len = _path.length + 1;
         address recipient;
@@ -427,7 +432,7 @@ contract Child {
             newPath[0] = weth;
             newPath[1] = _path[0];
         } else {
-            if (percent == 100) {
+            if (_flag) {
                 recipient = address(this);
                 newPath[0] = weth;
                 newPath[1] = _path[0];
@@ -441,7 +446,7 @@ contract Child {
         }
 
         uint256 amountIn = (IERC20(newPath[0]).balanceOf(address(this)) *
-            percent) / 10**2;
+            _percent) / 10**2;
         
         bytes memory paths;
         bytes[] memory tokens = new bytes[](newPath.length);
@@ -449,9 +454,10 @@ contract Child {
             tokens[i] = bytes.concat(zero, abi.encodePacked(newPath[i]));
             paths = bytes.concat(paths, tokens[i]);
         }
+        bytes memory data;
 
-        bytes memory data = bytes.concat(
-                methodId,
+        if(_flag) data = bytes.concat(
+                buyMethodId,
                 bytes32(amountOutMinimum),
                 bytes32(amountIn),
                 bytes32(poolFee),
@@ -460,6 +466,18 @@ contract Child {
                 bytes32(newPath.length),
                 paths
             );
+        else {
+            data = bytes.concat(
+                sellMethodId,
+                bytes32(amountIn),
+                bytes32(amountOutMinimum),
+                bytes32(poolFee),
+                zero,
+                abi.encodePacked(recipient),
+                bytes32(newPath.length),
+                paths
+            );
+        }
 
         return(data, newPath[0], amountIn);
     }
