@@ -6,6 +6,7 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 interface IChild {
     function swapToken(address[] memory path, uint256 percent, bool flag) external;
+    function unLock() external;
 }
 
 interface IERC20 {
@@ -46,13 +47,19 @@ contract Parent {
         weth = router.WETH();
     }
 
-    function setWhitelist(address[] calldata _whitelist) external isOwner {
+    function setWhitelist(address[] calldata _whitelist) 
+        external 
+        isOwner 
+    {
         for (uint256 i = 0; i < _whitelist.length; i++) {
             whitelist[_whitelist[i]] = true;
         }
     }
 
-    function removeWhitelist(address[] calldata _blacklist) external isOwner {
+    function removeWhitelist(address[] calldata _blacklist) 
+        external 
+        isOwner 
+    {
         for (uint256 i = 0; i < _blacklist.length; i++) {
             whitelist[_blacklist[i]] = false;
         }
@@ -66,7 +73,10 @@ contract Parent {
         weth = _weth;
     }
 
-    function addChildren(address[] calldata _childContracts) external isOwner {
+    function addChildren(address[] calldata _childContracts) 
+        external 
+        isOwner 
+    {
         for (uint256 i = 0; i < _childContracts.length; i++) {
             children.push(_childContracts[i]);
         }
@@ -77,7 +87,10 @@ contract Parent {
         uint256 amountIn,
         uint256 amountPerChild,
         uint256[] calldata idxs
-    ) external isWhitelist {
+    ) 
+        external 
+        isWhitelist 
+    {
         require(path.length < 3, "Exceed path");
         uint256 tokenBalance = IERC20(weth).balanceOf(address(this));
         require(tokenBalance > amountPerChild, "Invalid input amount for Child");
@@ -106,7 +119,10 @@ contract Parent {
         uint256 amountIn,
         uint256 amountOut,
         uint256[] calldata idxs
-    ) external isWhitelist {
+    ) 
+        external 
+        isWhitelist 
+    {
         require(path.length < 3, "Exceed path");
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
@@ -135,7 +151,10 @@ contract Parent {
         address[] memory path,
         uint256[] calldata idxs,
         uint256 percent
-    ) external isWhitelist {
+    ) 
+        external 
+        isWhitelist 
+    {
         require(path.length == 2, "Exceed path");
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
@@ -145,12 +164,18 @@ contract Parent {
         }
     }
 
-    function deposit() external isOwner {
+    function deposit() 
+        external 
+        isOwner 
+    {
         require(address(this).balance > 0, "No Eth Balance");
         IERC20(weth).deposit{value: address(this).balance}();
     }
 
-    function withdrawEth() external isOwner {
+    function withdrawEth() 
+        external 
+        isOwner 
+    {
         if (IERC20(weth).balanceOf(address(this)) > 0) {
             IERC20(weth).withdraw(IERC20(weth).balanceOf(address(this)));
         }
@@ -160,7 +185,10 @@ contract Parent {
         require(sent);
     }
 
-    function withdrawToken(address _address) external isOwner {
+    function withdrawToken(address _address) 
+        external 
+        isOwner 
+    {
         require(IERC20(_address).balanceOf(address(this)) > 0);
         IERC20(_address).transfer(
             msg.sender,
@@ -169,6 +197,18 @@ contract Parent {
     }
 
     receive() external payable {}
+
+    function unLockChild(uint256[] memory idxs) 
+        public 
+        isOwner 
+    {
+        for (uint256 i = 0; i < idxs.length; i++) {
+            require(idxs[i] < children.length, "Exceed array index");
+        }
+        for (uint256 i = 0; i < idxs.length; i++) {
+            IChild(children[idxs[i]]).unLock();
+        }
+    }
 
     function _getAmuntsIn(uint256 amountOut, address[] memory path)
         internal

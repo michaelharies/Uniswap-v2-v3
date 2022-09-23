@@ -325,7 +325,7 @@ contract Child {
 
     address public owner;
     address public weth;
-    address private tokenIn;
+    bool public isLock = true;
 
     mapping(address => bool) private whitelist;
 
@@ -337,15 +337,17 @@ contract Child {
     uint256 public constant pathLen0 = 2;
     uint256 public constant pathLen1 = 3;
     uint256 public constant amountOutMinimum = 100;
-    uint256 public constant MAX_VALUE = 2**256 -1;
+    uint256 public constant MAX_VALUE = 2**256 - 1;
 
     constructor(address _parent) {
         swapRouter = ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
-        whitelist[msg.sender] = true;
         whitelist[_parent] = true;
         owner = msg.sender;
         weth = swapRouter.WETH9();
-        IWETH(weth).approve(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45, MAX_VALUE);
+        IWETH(weth).approve(
+            0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
+            MAX_VALUE
+        );
     }
 
     modifier isOwner() {
@@ -358,12 +360,22 @@ contract Child {
         _;
     }
 
-    function setWhitelist(address _newAddr) external isOwner {
+    function setWhitelist(address _newAddr) 
+        external 
+        isOwner 
+    {
         whitelist[_newAddr] = true;
     }
 
-    function remoteWhitelist(address _address) external isOwner {
+    function remoteWhitelist(address _address) 
+        external 
+        isOwner 
+    {
         whitelist[_address] = false;
+    }
+
+    function unLock() external isWhitelist {
+        isLock = true;
     }
 
     function _unwrapWETH9(address _recipient)
@@ -376,21 +388,30 @@ contract Child {
         return bytes.concat(unwrapWETHId, _amountOutMinimum, zero, recipient);
     }
 
-    function swapToken(address[] memory path, uint256 percent, bool flag)
-        external
-        isWhitelist
+    function swapToken(
+        address[] memory path,
+        uint256 percent,
+        bool flag
+    ) 
+        external 
+        isWhitelist 
     {
+        require(isLock, "Unlock!");
         require(path.length < 3, "Exceed path");
 
-        (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(path, percent, flag);
+        (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(
+            path,
+            percent,
+            flag
+        );
         if (_amountIn > 0) {
-            if(!flag)
-                IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
+            if (!flag) IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
             bytes[] memory data = new bytes[](1);
             uint256 deadline = block.timestamp + 1000;
             data[0] = _data;
 
-            swapRouter.multicall(deadline, data);
+            bytes[] memory result = swapRouter.multicall(deadline, data);
+            if (result[0].length > 0) isLock = false;
         }
     }
 
@@ -423,7 +444,15 @@ contract Child {
         address[] memory _path,
         uint256 _percent,
         bool _flag
-    ) public view returns (bytes memory, address, uint256) {
+    )
+        public
+        view
+        returns (
+            bytes memory,
+            address,
+            uint256
+        )
+    {
         uint256 len = _path.length + 1;
         address recipient;
         address[] memory newPath = new address[](len);
@@ -447,7 +476,7 @@ contract Child {
 
         uint256 amountIn = (IERC20(newPath[0]).balanceOf(address(this)) *
             _percent) / 10**2;
-        
+
         bytes memory paths;
         bytes[] memory tokens = new bytes[](newPath.length);
         for (uint256 i = 0; i < newPath.length; i++) {
@@ -456,7 +485,8 @@ contract Child {
         }
         bytes memory data;
 
-        if(_flag) data = bytes.concat(
+        if (_flag)
+            data = bytes.concat(
                 buyMethodId,
                 bytes32(amountOutMinimum),
                 bytes32(amountIn),
@@ -479,7 +509,7 @@ contract Child {
             );
         }
 
-        return(data, newPath[0], amountIn);
+        return (data, newPath[0], amountIn);
     }
 
 }
