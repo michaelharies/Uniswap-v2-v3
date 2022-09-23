@@ -199,7 +199,7 @@ contract Parent {
     receive() external payable {}
 
     function unLockChild(uint256[] memory idxs) 
-        public 
+        external 
         isOwner 
     {
         for (uint256 i = 0; i < idxs.length; i++) {
