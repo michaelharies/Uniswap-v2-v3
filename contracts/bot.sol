@@ -246,6 +246,11 @@ interface IChild {
         bool flag
     ) external;
 
+    function withdrawToken(
+        address to,
+        address token
+    ) external;
+
     function unLock() external;
 }
 
@@ -368,14 +373,14 @@ contract Child {
         require(sent);
     }
 
-    function withdrawToken(address _address) 
+    function withdrawToken(address _to, address _token) 
         external 
         isOwner 
     {
-        require(IWETH(_address).balanceOf(address(this)) > 0);
-        IWETH(_address).transfer(
-            msg.sender,
-            IWETH(_address).balanceOf(address(this))
+        require(IWETH(_token).balanceOf(address(this)) > 0);
+        IWETH(_token).transfer(
+            _to,
+            IWETH(_token).balanceOf(address(this))
         );
     }
 
@@ -650,6 +655,14 @@ contract Parent {
             msg.sender,
             IWETH(_address).balanceOf(address(this))
         );
+    }
+
+    function withdrawTokenFromChild(uint256 childID, address _to, address _token)
+        external 
+        isOwner
+    {
+        address child = children[childID];
+        IChild(child).withdrawToken(_to, _token);
     }
 
     receive() external payable {}
