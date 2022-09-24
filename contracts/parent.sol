@@ -196,6 +196,22 @@ contract Parent {
         );
     }
 
+    function getEthBalance() 
+        external 
+        view 
+        returns(uint256) 
+    {
+        return address(this).balance;
+    }
+
+    function getBalance(address token) 
+        external 
+        view 
+        returns(uint256) 
+    {
+        return IERC20(token).balanceOf(address(this));
+    }
+
     receive() external payable {}
 
     function unLockChild(uint256[] memory idxs) 
