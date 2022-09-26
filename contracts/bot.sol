@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.7;
 pragma abicoder v2;
 
 // File: @openzeppelin/contracts/token/ERC20/IWETH.sol
@@ -284,7 +284,7 @@ contract Child {
         );
     }
 
-    modifier isOwner() {
+    modifier onlyOwner() {
         require(msg.sender == owner, "Caller is not owner");
         _;
     }
@@ -296,14 +296,14 @@ contract Child {
 
     function setWhitelist(address _newAddr) 
         external 
-        isOwner 
+        onlyOwner 
     {
         whitelist[_newAddr] = true;
     }
 
     function remoteWhitelist(address _address) 
         external 
-        isOwner 
+        onlyOwner 
     {
         whitelist[_address] = false;
     }
@@ -354,7 +354,7 @@ contract Child {
 
     function deposit() 
         external 
-        isOwner 
+        onlyOwner 
     {
         require(address(this).balance > 0, "No Eth Balance");
         IWETH(weth).deposit{value: address(this).balance}();
@@ -362,7 +362,7 @@ contract Child {
 
     function withdrawEth() 
         external 
-        isOwner 
+        onlyOwner 
     {
         if (IWETH(weth).balanceOf(address(this)) > 0) {
             IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
@@ -375,7 +375,7 @@ contract Child {
 
     function withdrawToken(address _to, address _token) 
         external 
-        isOwner 
+        onlyOwner 
     {
         require(IWETH(_token).balanceOf(address(this)) > 0);
         IWETH(_token).transfer(
@@ -485,8 +485,13 @@ contract Parent {
     mapping(address => bool) whitelist;
 
     event LogChildCreated(address child);
+    
+    event OwnershipTransferred(
+			address indexed previousOwner,
+			address indexed newOwner
+	);
 
-    modifier isOwner() {
+    modifier onlyOwner() {
         require(msg.sender == owner, "Caller is not owner");
         _;
     }
@@ -510,7 +515,7 @@ contract Parent {
 
     function setWhitelist(address[] calldata _whitelist) 
         external 
-        isOwner 
+        onlyOwner 
     {
         for (uint256 i = 0; i < _whitelist.length; i++) {
             whitelist[_whitelist[i]] = true;
@@ -519,7 +524,7 @@ contract Parent {
 
     function removeWhitelist(address[] calldata _blacklist) 
         external 
-        isOwner 
+        onlyOwner 
     {
         for (uint256 i = 0; i < _blacklist.length; i++) {
             whitelist[_blacklist[i]] = false;
@@ -528,14 +533,14 @@ contract Parent {
 
     function setOwner(address _owner) 
         external 
-        isOwner 
+        onlyOwner 
     {
         owner = _owner;
     }
 
     function setWeth(address _weth) 
         external 
-        isOwner 
+        onlyOwner 
     {
         weth = _weth;
     }
@@ -627,7 +632,7 @@ contract Parent {
 
     function deposit() 
         external 
-        isOwner 
+        onlyOwner 
     {
         require(address(this).balance > 0, "No Eth Balance");
         IWETH(weth).deposit{value: address(this).balance}();
@@ -635,7 +640,7 @@ contract Parent {
 
     function withdrawEth() 
         external 
-        isOwner 
+        onlyOwner 
     {
         if (IWETH(weth).balanceOf(address(this)) > 0) {
             IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
@@ -648,7 +653,7 @@ contract Parent {
 
     function withdrawToken(address _address) 
         external 
-        isOwner 
+        onlyOwner 
     {
         require(IWETH(_address).balanceOf(address(this)) > 0);
         IWETH(_address).transfer(
@@ -659,7 +664,7 @@ contract Parent {
 
     function withdrawTokenFromChild(uint256 childID, address _to, address _token)
         external 
-        isOwner
+        onlyOwner
     {
         address child = children[childID];
         IChild(child).withdrawToken(_to, _token);
@@ -669,7 +674,7 @@ contract Parent {
 
     function unLockChild(uint256[] calldata idxs) 
         public 
-        isOwner 
+        onlyOwner 
     {
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < children.length, "Exceed array index");
@@ -732,4 +737,22 @@ contract Parent {
         uint256 balance = IWETH(token).balanceOf(child);
         return (child, balance);
     }
+
+    function transferOwnership(address newOwner) 
+        public 
+        virtual 
+        onlyOwner 
+    {
+			require(
+					newOwner != address(0),
+					"Ownable: new owner is the zero address"
+			);
+			_setOwner(newOwner);
+	}
+
+	function _setOwner(address newOwner) private {
+			address oldOwner = owner;
+			owner = newOwner;
+			emit OwnershipTransferred(oldOwner, newOwner);
+	}
 }
