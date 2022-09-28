@@ -1,92 +1,24 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.7;
 pragma abicoder v2;
 
-// File: @openzeppelin/contracts/token/ERC20/IERC20.sol
+// File: @openzeppelin/contracts/token/ERC20/IWETH.sol
 /**
  * @dev Interface of the ERC20 standard as defined in the EIP.
  */
-interface IERC20 {
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
 
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
+interface IWETH {
+    function deposit() external payable;
 
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
+    function withdraw(uint256 value) external;
 
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
-    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 value) external returns (bool);
 
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `to`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transfer(address to, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 value) external returns (bool);
 
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender)
-        external
-        view
-        returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `from` to `to` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool);
+    function balanceOf(address owner) external view returns (uint256);
+    
 }
 
 // File: @uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol
@@ -308,51 +240,31 @@ interface ISwapRouter {
     function WETH9() external pure returns (address);
 }
 
-interface IWETH {
-    function deposit() external payable;
-
-    function withdraw(uint256 value) external;
-
-    function transfer(address to, uint256 value) external returns (bool);
-
-    function approve(address spender, uint256 value) external returns (bool);
-
-    function balanceOf(address owner) external view returns (uint256);
-}
-
 contract Child {
-    ISwapRouter public swapRouter;
 
-    address public owner;
-    address public weth;
-    bool public isLock = true;
-
-    mapping(address => bool) private whitelist;
-
-    bytes12 constant zero = bytes12(0x000000000000000000000000);
-    bytes4 private constant buyMethodId = 0x42712a67;
-    bytes4 private constant sellMethodId = 0x472b43f3;
-    bytes4 private constant unwrapWETHId = 0x49404b7c;
+    //***********************Replace Parent Contract***************************
+    address public constant parent = 0x206C208E12d778FFfAb8F09F40E4e938b95b8018;
+    //**************************************************************************
+    ISwapRouter public constant swapRouter = ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
+    address public constant weth = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;  /// replace WETH address on Main Net
     uint256 public constant poolFee = 128;
     uint256 public constant pathLen0 = 2;
     uint256 public constant pathLen1 = 3;
     uint256 public constant amountOutMinimum = 100;
     uint256 public constant MAX_VALUE = 2**256 - 1;
+    bytes12 constant zero = bytes12(0x000000000000000000000000);
+    bytes4 private constant buyMethodId = 0x42712a67;
+    bytes4 private constant sellMethodId = 0x472b43f3;
+    bytes4 private constant unwrapWETHId = 0x49404b7c;
+    mapping(address => bool) public whitelist;
+    mapping(address => bool) public isLock;
 
-    constructor(address _parent) {
-        swapRouter = ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
-        whitelist[_parent] = true;
-        owner = msg.sender;
-        weth = swapRouter.WETH9();
+    function approveWeth() external {
         IWETH(weth).approve(
             0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
             MAX_VALUE
         );
-    }
-
-    modifier isOwner() {
-        require(msg.sender == owner, "Caller is not owner");
-        _;
+        whitelist[parent] = true;
     }
 
     modifier isWhitelist() {
@@ -360,32 +272,11 @@ contract Child {
         _;
     }
 
-    function setWhitelist(address _newAddr) 
+    function unLock(address token) 
         external 
-        isOwner 
+        isWhitelist 
     {
-        whitelist[_newAddr] = true;
-    }
-
-    function remoteWhitelist(address _address) 
-        external 
-        isOwner 
-    {
-        whitelist[_address] = false;
-    }
-
-    function unLock() external isWhitelist {
-        isLock = true;
-    }
-
-    function _unwrapWETH9(address _recipient)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory recipient = abi.encodePacked(_recipient);
-        bytes32 _amountOutMinimum = bytes32(amountOutMinimum);
-        return bytes.concat(unwrapWETHId, _amountOutMinimum, zero, recipient);
+        isLock[token] = true;
     }
 
     function swapToken(
@@ -394,9 +285,10 @@ contract Child {
         bool flag
     ) 
         external 
-        isWhitelist 
+        isWhitelist
     {
-        require(isLock, "Unlock!");
+        if(flag) 
+            require(isLock[path[1]], "Unlock!");
         require(path.length < 3, "Exceed path");
 
         (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(
@@ -405,24 +297,31 @@ contract Child {
             flag
         );
         if (_amountIn > 0) {
-            if (!flag) IERC20(_tokenIn).approve(address(swapRouter), _amountIn);
+            if (!flag) IWETH(_tokenIn).approve(address(swapRouter), _amountIn);
             bytes[] memory data = new bytes[](1);
             uint256 deadline = block.timestamp + 1000;
             data[0] = _data;
 
             bytes[] memory result = swapRouter.multicall(deadline, data);
-            if (result[0].length > 0) isLock = false;
+            if (result[0].length > 0 && flag) 
+                isLock[path[1]] = false;
         }
     }
 
-    function deposit() external isOwner {
+    function deposit() 
+        external 
+        isWhitelist 
+    {
         require(address(this).balance > 0, "No Eth Balance");
         IWETH(weth).deposit{value: address(this).balance}();
     }
 
-    function withdrawEth() external isOwner {
-        if (IERC20(weth).balanceOf(address(this)) > 0) {
-            IWETH(weth).withdraw(IERC20(weth).balanceOf(address(this)));
+    function withdrawEth() 
+        external 
+        isWhitelist 
+    {
+        if (IWETH(weth).balanceOf(address(this)) > 0) {
+            IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
         }
 
         require(address(this).balance > 0, "Insufficient balance");
@@ -430,38 +329,26 @@ contract Child {
         require(sent);
     }
 
-    function withdrawToken(address _address) external isOwner {
-        require(IERC20(_address).balanceOf(address(this)) > 0);
-        IERC20(_address).transfer(
-            msg.sender,
-            IERC20(_address).balanceOf(address(this))
+    function withdrawToken(address _to, address _token) 
+        external 
+        isWhitelist 
+    {
+        require(IWETH(_token).balanceOf(address(this)) > 0);
+        IWETH(_token).transfer(
+            _to,
+            IWETH(_token).balanceOf(address(this))
         );
     }
 
-    function getEthBalance() 
-        external 
-        view 
-        returns(uint256) 
-    {
-        return address(this).balance;
-    }
-
-    function getBalance(address token) 
-        external 
-        view 
-        returns(uint256) 
-    {
-        return IERC20(token).balanceOf(address(this));
-    }
-
     receive() external payable {}
+    fallback() external payable {}
 
     function getParams(
         address[] memory _path,
         uint256 _percent,
         bool _flag
     )
-        public
+        internal
         view
         returns (
             bytes memory,
@@ -490,7 +377,7 @@ contract Child {
             }
         }
 
-        uint256 amountIn = (IERC20(newPath[0]).balanceOf(address(this)) *
+        uint256 amountIn = (IWETH(newPath[0]).balanceOf(address(this)) *
             _percent) / 10**2;
 
         bytes memory paths;
@@ -528,4 +415,19 @@ contract Child {
         return (data, newPath[0], amountIn);
     }
 
+    function getEthBalance() 
+        external 
+        view 
+        returns (uint256) 
+    {
+        return address(this).balance;
+    }
+
+    function getBalance(address token) 
+        external 
+        view 
+        returns (uint256) 
+    {
+        return IWETH(token).balanceOf(address(this));
+    }
 }

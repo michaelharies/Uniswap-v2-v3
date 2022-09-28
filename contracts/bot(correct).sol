@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.7;
 pragma abicoder v2;
 
 // File: @openzeppelin/contracts/token/ERC20/IWETH.sol
@@ -322,15 +322,13 @@ abstract contract Ownable is Context {
 	}
 }
 
-contract Child {
+contract Child is Ownable {
     ISwapRouter public swapRouter;
 
-    address public owner;
     address public weth;
-    bool public isLock = true;
 
     mapping(address => bool) private whitelist;
-
+    mapping(address => bool) public isLock;
     bytes12 constant zero = bytes12(0x000000000000000000000000);
     bytes4 private constant buyMethodId = 0x42712a67;
     bytes4 private constant sellMethodId = 0x472b43f3;
@@ -341,19 +339,13 @@ contract Child {
     uint256 public constant amountOutMinimum = 100;
     uint256 public constant MAX_VALUE = 2**256 - 1;
 
-    constructor(address _parent) {
+    constructor() {
         swapRouter = ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
-        whitelist[_parent] = true;
         weth = swapRouter.WETH9();
         IWETH(weth).approve(
             0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
             MAX_VALUE
         );
-    }
-
-    modifier isOwner() {
-        require(msg.sender == owner, "Caller is not owner");
-        _;
     }
 
     modifier isWhitelist() {
@@ -363,33 +355,23 @@ contract Child {
 
     function setWhitelist(address _newAddr) 
         external 
-        isOwner 
+        onlyOwner 
     {
         whitelist[_newAddr] = true;
     }
 
     function remoteWhitelist(address _address) 
         external 
-        isOwner 
+        onlyOwner 
     {
         whitelist[_address] = false;
     }
 
-    function unLock() 
+    function unLock(address token) 
         external 
         isWhitelist 
     {
-        isLock = true;
-    }
-
-    function _unwrapWETH9(address _recipient)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory recipient = abi.encodePacked(_recipient);
-        bytes32 _amountOutMinimum = bytes32(amountOutMinimum);
-        return bytes.concat(unwrapWETHId, _amountOutMinimum, zero, recipient);
+        isLock[token] = true;
     }
 
     function swapToken(
@@ -400,7 +382,8 @@ contract Child {
         external 
         isWhitelist 
     {
-        require(isLock, "Unlock!");
+        if(flag) 
+            require(isLock[path[1]], "Unlock!");
         require(path.length < 3, "Exceed path");
 
         (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(
@@ -415,13 +398,14 @@ contract Child {
             data[0] = _data;
 
             bytes[] memory result = swapRouter.multicall(deadline, data);
-            if (result[0].length > 0) isLock = false;
+            if (result[0].length > 0 && flag) 
+                isLock[path[1]] = false;
         }
     }
 
     function deposit() 
         external 
-        isOwner 
+        onlyOwner 
     {
         require(address(this).balance > 0, "No Eth Balance");
         IWETH(weth).deposit{value: address(this).balance}();
@@ -429,7 +413,7 @@ contract Child {
 
     function withdrawEth() 
         external 
-        isOwner 
+        onlyOwner 
     {
         if (IWETH(weth).balanceOf(address(this)) > 0) {
             IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
@@ -442,7 +426,7 @@ contract Child {
 
     function withdrawToken(address _to, address _token) 
         external 
-        isOwner 
+        onlyOwner 
     {
         require(IWETH(_token).balanceOf(address(this)) > 0);
         IWETH(_token).transfer(
@@ -452,13 +436,14 @@ contract Child {
     }
 
     receive() external payable {}
+    fallback() external payable {}
 
     function getParams(
         address[] memory _path,
         uint256 _percent,
         bool _flag
     )
-        public
+        internal
         view
         returns (
             bytes memory,
@@ -561,11 +546,6 @@ contract Parent is Ownable{
         router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
         whitelist[msg.sender] = true;
         weth = router.WETH();
-        for (uint256 i = 0; i < 20; i++) {
-            Child child = new Child(address(this));
-            emit LogChildCreated(address(child));
-            children.push(address(child));
-        }
     }
 
     function addBulckWhitelists(address[] calldata _whitelist) 
@@ -584,13 +564,6 @@ contract Parent is Ownable{
         for (uint256 i = 0; i < _blacklist.length; i++) {
             whitelist[_blacklist[i]] = false;
         }
-    }
-
-    function setWeth(address _weth) 
-        external 
-        onlyOwner 
-    {
-        weth = _weth;
     }
 
     function multiBuyToken(
