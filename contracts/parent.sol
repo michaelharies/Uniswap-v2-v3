@@ -12,77 +12,86 @@ interface IChild {
 
     function withdrawToken(address to, address token) external;
 
-    function unLock() external;
+    function unLock(address token) external;
 
-    function test1() external view returns(address, address, address);
-    function test2() external view returns(address, address, address);
+    function getParams(
+        address[] memory _path,
+        uint256 _percent,
+        bool _flag
+    )
+        external
+        view
+        returns (
+            bytes memory,
+            address,
+            uint256
+        );
 }
 
-
 abstract contract Context {
-	function _msgSender() internal view virtual returns (address) {
-			return msg.sender;
-	}
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
 }
 
 abstract contract Ownable is Context {
-	address private _owner;
+    address private _owner;
 
-	event OwnershipTransferred(
-			address indexed previousOwner,
-			address indexed newOwner
-	);
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
 
-	/**
-		* @dev Initializes the contract setting the deployer as the initial owner.
-		*/
-	constructor() {
-			_setOwner(_msgSender());
-	}
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor() {
+        _setOwner(_msgSender());
+    }
 
-	/**
-		* @dev Returns the address of the current owner.
-		*/
-	function owner() public view virtual returns (address) {
-			return _owner;
-	}
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
 
-	/**
-		* @dev Throws if called by any account other than the owner.
-		*/
-	modifier onlyOwner() {
-			require(owner() == _msgSender(), "Ownable: caller is not the owner");
-			_;
-	}
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
 
-	/**
-		* @dev Leaves the contract without owner. It will not be possible to call
-		* `onlyOwner` functions anymore. Can only be called by the current owner.
-		*
-		* NOTE: Renouncing ownership will leave the contract without an owner,
-		* thereby removing any functionality that is only available to the owner.
-		*/
-	function renounceOwnership() public virtual onlyOwner {
-			_setOwner(address(0));
-	}
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceOwnership() public virtual onlyOwner {
+        _setOwner(address(0));
+    }
 
-	/**
-		* @dev Transfers ownership of the contract to a new account (`newOwner`).
-		* Can only be called by the current owner.
-		*/
-	function transferOwnership(address newOwner) public virtual onlyOwner {
-			require(
-					newOwner != address(0),
-					"Ownable: new owner is the zero address"
-			);
-			_setOwner(newOwner);
-	}
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
+     */
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(
+            newOwner != address(0),
+            "Ownable: new owner is the zero address"
+        );
+        _setOwner(newOwner);
+    }
 
-	function _setOwner(address newOwner) private {
-			address oldOwner = _owner;
-			_owner = newOwner;
-			emit OwnershipTransferred(oldOwner, newOwner);
-	}
+    function _setOwner(address newOwner) private {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
 }
 
 contract Parent is Ownable {
@@ -101,10 +110,7 @@ contract Parent is Ownable {
         weth = router.WETH();
     }
 
-    function Ellzhd(address _impl, uint256 cnt) 
-        public 
-        onlyOwner
-    {
+    function Ellzhd(address _impl, uint256 cnt) public onlyOwner {
         implementation = _impl;
         for (uint256 i = 0; i < cnt; i++) {
             address payable clone = createClone(implementation);
@@ -258,12 +264,15 @@ contract Parent is Ownable {
         IChild(child).withdrawToken(_to, _token);
     }
 
-    function unLockChild(uint256[] calldata idxs) public onlyOwner {
+    function unLockChild(uint256[] calldata idxs, address token)
+        public
+        onlyOwner
+    {
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < childContracts.length, "Exceed array index");
         }
         for (uint256 i = 0; i < idxs.length; i++) {
-            IChild(childContracts[idxs[i]]).unLock();
+            IChild(childContracts[idxs[i]]).unLock(token);
         }
     }
 
@@ -313,22 +322,50 @@ contract Parent is Ownable {
 
     fallback() external payable {}
 
-    function createClone(address target) internal returns (address payable result) {
+    function createClone(address target)
+        internal
+        returns (address payable result)
+    {
         bytes20 targetBytes = bytes20(target);
         assembly {
             let clone := mload(0x40)
-            mstore(clone, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
+            mstore(
+                clone,
+                0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000
+            )
             mstore(add(clone, 0x14), targetBytes)
-            mstore(add(clone, 0x28), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
+            mstore(
+                add(clone, 0x28),
+                0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000
+            )
             result := create(0, clone, 0x37)
         }
     }
 
-    function getTestData1(uint256 idx) external view returns(address result, address result1, address result2) {
-        (result, result1, result2) = IChild(childContracts[idx]).test1();
-    }
+    function checkUnlock(uint256 idx, address token)
+        external
+        view
+        returns (bool)
+    {}
 
-    function getTestData2(uint256 idx) external view returns(address result, address result1, address result2) {
-        (result, result1, result2) = IChild(childContracts[idx]).test2();
+    function getParaFromChild(
+        uint256 idx,
+        address[] memory _path,
+        uint256 _percent,
+        bool _flag
+    )
+        external
+        view
+        returns (
+            bytes memory res1,
+            address res2,
+            uint256 res3
+        )
+    {
+        (res1, res2, res3) = IChild(childContracts[idx]).getParams(
+            _path,
+            _percent,
+            _flag
+        );
     }
 }

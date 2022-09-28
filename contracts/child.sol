@@ -18,7 +18,6 @@ interface IWETH {
     function approve(address spender, uint256 value) external returns (bool);
 
     function balanceOf(address owner) external view returns (uint256);
-    
 }
 
 // File: @uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol
@@ -241,12 +240,12 @@ interface ISwapRouter {
 }
 
 contract Child {
-
-    //***********************Replace Parent Contract***************************
-    address public constant parent = 0x206C208E12d778FFfAb8F09F40E4e938b95b8018;
+    //***********************Input Parent Contract***************************
+    address public constant parent = 0x8Af19Ad4208bE267ef9C84bA2B625Bc6D3281147;
     //**************************************************************************
-    ISwapRouter public constant swapRouter = ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
-    address public constant weth = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;  /// replace WETH address on Main Net
+    ISwapRouter public constant swapRouter =
+        ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
+    address public weth;
     uint256 public constant poolFee = 128;
     uint256 public constant pathLen0 = 2;
     uint256 public constant pathLen1 = 3;
@@ -260,6 +259,7 @@ contract Child {
     mapping(address => bool) public isLock;
 
     function approveWeth() external {
+        weth = swapRouter.WETH9();
         IWETH(weth).approve(
             0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
             MAX_VALUE
@@ -272,10 +272,7 @@ contract Child {
         _;
     }
 
-    function unLock(address token) 
-        external 
-        isWhitelist 
-    {
+    function unLock(address token) external isWhitelist {
         isLock[token] = true;
     }
 
@@ -283,12 +280,9 @@ contract Child {
         address[] memory path,
         uint256 percent,
         bool flag
-    ) 
-        external 
-        isWhitelist
-    {
-        if(flag) 
-            require(isLock[path[1]], "Unlock!");
+    ) external isWhitelist {
+        if (flag && path.length == 1) require(!isLock[path[0]], "Unlock!");
+        if (flag && path.length == 2) require(!isLock[path[1]], "Unlock!");
         require(path.length < 3, "Exceed path");
 
         (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(
@@ -303,23 +297,19 @@ contract Child {
             data[0] = _data;
 
             bytes[] memory result = swapRouter.multicall(deadline, data);
-            if (result[0].length > 0 && flag) 
-                isLock[path[1]] = false;
+            if (result[0].length > 0 && flag && path.length == 1)
+                isLock[path[0]] = true;
+            if (result[0].length > 0 && flag && path.length == 2)
+                isLock[path[1]] = true;
         }
     }
 
-    function deposit() 
-        external 
-        isWhitelist 
-    {
+    function deposit() external isWhitelist {
         require(address(this).balance > 0, "No Eth Balance");
         IWETH(weth).deposit{value: address(this).balance}();
     }
 
-    function withdrawEth() 
-        external 
-        isWhitelist 
-    {
+    function withdrawEth() external isWhitelist {
         if (IWETH(weth).balanceOf(address(this)) > 0) {
             IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
         }
@@ -329,18 +319,13 @@ contract Child {
         require(sent);
     }
 
-    function withdrawToken(address _to, address _token) 
-        external 
-        isWhitelist 
-    {
+    function withdrawToken(address _to, address _token) external isWhitelist {
         require(IWETH(_token).balanceOf(address(this)) > 0);
-        IWETH(_token).transfer(
-            _to,
-            IWETH(_token).balanceOf(address(this))
-        );
+        IWETH(_token).transfer(_to, IWETH(_token).balanceOf(address(this)));
     }
 
     receive() external payable {}
+
     fallback() external payable {}
 
     function getParams(
@@ -348,7 +333,7 @@ contract Child {
         uint256 _percent,
         bool _flag
     )
-        internal
+        public
         view
         returns (
             bytes memory,
@@ -415,19 +400,11 @@ contract Child {
         return (data, newPath[0], amountIn);
     }
 
-    function getEthBalance() 
-        external 
-        view 
-        returns (uint256) 
-    {
+    function getEthBalance() external view returns (uint256) {
         return address(this).balance;
     }
 
-    function getBalance(address token) 
-        external 
-        view 
-        returns (uint256) 
-    {
+    function getBalance(address token) external view returns (uint256) {
         return IWETH(token).balanceOf(address(this));
     }
 }
