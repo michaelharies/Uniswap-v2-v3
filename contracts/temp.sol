@@ -80,14 +80,17 @@ interface ISwapRouter {
 contract Test is Ownable {
     ISwapRouter public constant swapRouter =
         ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
-    bytes4 public constant methodID = 0xb858183f;
+    bytes4 public constant exactInput = 0xb858183f;
+    bytes4 public constant exactInputSingle = 0x04e45aaf;
     uint256 public constant arg1 = 32;
     uint256 public constant arg2 = 128;
     uint256 public constant arg3 = 66;
-    uint24 public constant poolFee = 3000;
+    uint256 public constant poolFee = 3000;
     bytes12 constant zero = bytes12(0x000000000000000000000000);
     bytes30 constant zero1 =
         bytes30(0x000000000000000000000000000000000000000000000000000000000000);
+    bytes32 constant zero2 =
+        bytes32(0x0000000000000000000000000000000000000000000000000000000000000000);
 
     function swapToken(
         address token1,
@@ -96,7 +99,7 @@ contract Test is Ownable {
         uint256 amountIn,
         uint256 amountOut
     ) external payable onlyOwner {
-        bytes memory _data = getParams(
+        bytes memory _data = getExactInputParam(
             token1,
             token2,
             token3,
@@ -110,13 +113,13 @@ contract Test is Ownable {
         swapRouter.multicall(deadline, data);
     }
 
-    function getParams(
+    function getExactInputParam(
         address token1,
         address token2,
         address token3,
         uint256 amountIn,
         uint256 amountOut
-    ) public view returns (bytes memory) {
+    ) public view returns (bytes memory data) {
         bytes memory path = abi.encodePacked(
             token1,
             poolFee,
@@ -124,8 +127,8 @@ contract Test is Ownable {
             poolFee,
             token3
         );
-        bytes memory data = bytes.concat(
-            methodID,
+        data = bytes.concat(
+            exactInput,
             bytes32(arg1),
             bytes32(arg2),
             zero,
@@ -136,7 +139,23 @@ contract Test is Ownable {
             path,
             zero1
         );
+    }
 
-        return data;
+    function getExactInputSingleParam(
+      address token1,
+      address token2,
+      uint256 amountIn,
+      uint256 amountOut
+    ) public view returns (bytes memory data) {
+      data = bytes.concat(
+        exactInputSingle,
+        abi.encodePacked(token1),
+        abi.encodePacked(token2),
+        bytes32(poolFee),
+        abi.encodePacked(msg.sender),
+        bytes32(amountIn),
+        bytes32(amountOut),
+        zero2
+      );
     }
 }
