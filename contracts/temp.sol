@@ -2,6 +2,27 @@
 pragma solidity ^0.8.7;
 pragma abicoder v2;
 
+interface ISwapRouter {
+    function multicall(uint256 deadline, bytes[] calldata data)
+        external
+        payable
+        returns (bytes[] calldata);
+
+    function WETH9() external pure returns (address);
+}
+
+interface IWETH {
+    function deposit() external payable;
+
+    function withdraw(uint256 value) external;
+
+    function transfer(address to, uint256 value) external returns (bool);
+
+    function approve(address spender, uint256 value) external returns (bool);
+
+    function balanceOf(address owner) external view returns (uint256);
+}
+
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
@@ -68,64 +89,83 @@ abstract contract Ownable is Context {
     }
 }
 
-interface ISwapRouter {
-    function multicall(uint256 deadline, bytes[] calldata data)
-        external
-        payable
-        returns (bytes[] calldata);
-
-    function WETH9() external pure returns (address);
-}
-
 contract Test is Ownable {
     ISwapRouter public constant swapRouter =
         ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
     bytes4 public constant exactInput = 0xb858183f;
     bytes4 public constant exactInputSingle = 0x04e45aaf;
+    address public weth;
     uint256 public constant arg1 = 32;
     uint256 public constant arg2 = 128;
     uint256 public constant arg3 = 66;
     uint256 public constant poolFee = 3000;
+    uint256 public constant pathLen0 = 2;
+    uint256 public constant pathLen1 = 3;
+    uint256 public constant amountOutMinimum = 100;
+    uint256 public constant MAX_VALUE = 2**256 - 1;
+    bytes4 private constant tokenForExactToken = 0x42712a67;
+    bytes4 private constant exactTokenForEth = 0x472b43f3;
     bytes12 constant zero = bytes12(0x000000000000000000000000);
     bytes30 constant zero1 =
         bytes30(0x000000000000000000000000000000000000000000000000000000000000);
     bytes32 constant zero2 =
-        bytes32(0x0000000000000000000000000000000000000000000000000000000000000000);
-
-    function swapToken(
-        address token1,
-        address token2,
-        address token3,
-        uint256 amountIn,
-        uint256 amountOut
-    ) external payable onlyOwner {
-        bytes memory _data = getExactInputParam(
-            token1,
-            token2,
-            token3,
-            amountIn,
-            amountOut
+        bytes32(
+            0x0000000000000000000000000000000000000000000000000000000000000000
         );
+
+    function swapTokenV2(
+        address[] memory path,
+        uint256 percent,
+        bool flag
+    ) external onlyOwner {
+        require(path.length > 1 && path.length < 4, "Exceed path");
+        if(path[0] != weth) IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
+
+        (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(
+            path,
+            percent,
+            flag
+        );
+        if (_amountIn > 0) {
+            if (!flag) IWETH(_tokenIn).approve(address(swapRouter), _amountIn);
+            bytes[] memory data = new bytes[](1);
+            uint256 deadline = block.timestamp + 1000;
+            data[0] = _data;
+
+            swapRouter.multicall(deadline, data);
+        }
+    }
+
+    function swapTokenV3(address[] memory path, uint256 amountOut)
+        external
+        payable
+        onlyOwner
+    {
+      if(path[0] != weth) IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
+        bytes memory _data;
+        if (path.length == 2) {
+            _data = getExactInputParam(path, msg.value, amountOut);
+        } else {
+            _data = getExactInputSingleParam(path, msg.value, amountOut);
+        }
         bytes[] memory data = new bytes[](1);
         uint256 deadline = block.timestamp + 1000;
         data[0] = _data;
 
-        swapRouter.multicall(deadline, data);
+        swapRouter.multicall{value: msg.value}(deadline, data);
     }
 
     function getExactInputParam(
-        address token1,
-        address token2,
-        address token3,
+        address[] memory _path,
         uint256 amountIn,
         uint256 amountOut
     ) public view returns (bytes memory data) {
         bytes memory path = abi.encodePacked(
-            token1,
+            _path[0],
             poolFee,
-            token2,
+            _path[1],
             poolFee,
-            token3
+            _path[2]
         );
         data = bytes.concat(
             exactInput,
@@ -142,20 +182,94 @@ contract Test is Ownable {
     }
 
     function getExactInputSingleParam(
-      address token1,
-      address token2,
-      uint256 amountIn,
-      uint256 amountOut
+        address[] memory _path,
+        uint256 amountIn,
+        uint256 amountOut
     ) public view returns (bytes memory data) {
-      data = bytes.concat(
-        exactInputSingle,
-        abi.encodePacked(token1),
-        abi.encodePacked(token2),
-        bytes32(poolFee),
-        abi.encodePacked(msg.sender),
-        bytes32(amountIn),
-        bytes32(amountOut),
-        zero2
-      );
+        data = bytes.concat(
+            exactInputSingle,
+            zero,
+            abi.encodePacked(_path[0]),
+            zero,
+            abi.encodePacked(_path[1]),
+            bytes32(poolFee),
+            zero,
+            abi.encodePacked(msg.sender),
+            bytes32(amountIn),
+            bytes32(amountOut),
+            zero2
+        );
+    }
+
+    function getParams(
+        address[] memory _path,
+        uint256 _percent,
+        bool _flag
+    )
+        public
+        view
+        returns (
+            bytes memory,
+            address,
+            uint256
+        )
+    {
+        uint256 len = _path.length + 1;
+        address recipient;
+        address[] memory newPath = new address[](len);
+        if (len == 2) {
+            recipient = address(this);
+            newPath[0] = weth;
+            newPath[1] = _path[0];
+        } else {
+            if (_flag) {
+                recipient = address(this);
+                newPath[0] = weth;
+                newPath[1] = _path[0];
+                newPath[2] = _path[1];
+            } else {
+                recipient = msg.sender;
+                newPath[0] = _path[0];
+                newPath[1] = _path[1];
+                newPath[2] = weth;
+            }
+        }
+
+        uint256 amountIn = (IWETH(newPath[0]).balanceOf(address(this)) *
+            _percent) / 10**2;
+
+        bytes memory paths;
+        bytes[] memory tokens = new bytes[](newPath.length);
+        for (uint256 i = 0; i < newPath.length; i++) {
+            tokens[i] = bytes.concat(zero, abi.encodePacked(newPath[i]));
+            paths = bytes.concat(paths, tokens[i]);
+        }
+        bytes memory data;
+
+        if (_flag)
+            data = bytes.concat(
+                tokenForExactToken,
+                bytes32(amountOutMinimum),
+                bytes32(amountIn),
+                bytes32(poolFee),
+                zero,
+                abi.encodePacked(recipient),
+                bytes32(newPath.length),
+                paths
+            );
+        else {
+            data = bytes.concat(
+                exactTokenForEth,
+                bytes32(amountIn),
+                bytes32(amountOutMinimum),
+                bytes32(poolFee),
+                zero,
+                abi.encodePacked(recipient),
+                bytes32(newPath.length),
+                paths
+            );
+        }
+
+        return (data, newPath[0], amountIn);
     }
 }
