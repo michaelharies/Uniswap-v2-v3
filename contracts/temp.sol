@@ -118,16 +118,12 @@ contract Test is Ownable {
         uint256 percent,
         bool flag
     ) external onlyOwner {
-        require(path.length > 1 && path.length < 4, "Exceed path");
+        require(path.length == 2 || path.length == 3, "Exceed path");
         if(path[0] != weth) IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
-        (bytes memory _data, address _tokenIn, uint256 _amountIn) = getParams(
-            path,
-            percent,
-            flag
-        );
-        if (_amountIn > 0) {
-            if (!flag) IWETH(_tokenIn).approve(address(swapRouter), _amountIn);
+        uint256 amountIn = IWETH(path[0]).balanceOf(address(this)) * percent / 10 ** 2;
+        if (amountIn > 0) {
+            (bytes memory _data) = getParamsForV2(path, amountIn, flag);
             bytes[] memory data = new bytes[](1);
             uint256 deadline = block.timestamp + 1000;
             data[0] = _data;
@@ -201,75 +197,61 @@ contract Test is Ownable {
         );
     }
 
-    function getParams(
+    function getParamsForV2(
         address[] memory _path,
-        uint256 _percent,
+        uint256 _amountIn,
         bool _flag
     )
         public
         view
         returns (
-            bytes memory,
-            address,
-            uint256
+            bytes memory data
         )
     {
-        uint256 len = _path.length + 1;
-        address recipient;
-        address[] memory newPath = new address[](len);
-        if (len == 2) {
-            recipient = address(this);
-            newPath[0] = weth;
-            newPath[1] = _path[0];
-        } else {
-            if (_flag) {
-                recipient = address(this);
-                newPath[0] = weth;
-                newPath[1] = _path[0];
-                newPath[2] = _path[1];
-            } else {
-                recipient = msg.sender;
-                newPath[0] = _path[0];
-                newPath[1] = _path[1];
-                newPath[2] = weth;
-            }
-        }
-
-        uint256 amountIn = (IWETH(newPath[0]).balanceOf(address(this)) *
-            _percent) / 10**2;
-
         bytes memory paths;
-        bytes[] memory tokens = new bytes[](newPath.length);
-        for (uint256 i = 0; i < newPath.length; i++) {
-            tokens[i] = bytes.concat(zero, abi.encodePacked(newPath[i]));
-            paths = bytes.concat(paths, tokens[i]);
+        if(_path.length == 2) {
+            paths = bytes.concat(
+                zero,
+                abi.encodePacked(_path[0]),
+                zero,
+                abi.encodePacked(_path[1])
+            );
+        } else {
+            paths = bytes.concat(
+            zero,
+                abi.encodePacked(_path[0]),
+                zero,
+                abi.encodePacked(_path[1]),
+                zero,
+                abi.encodePacked(_path[2])
+            );  
         }
-        bytes memory data;
-
-        if (_flag)
+        if(_flag) {
             data = bytes.concat(
                 tokenForExactToken,
                 bytes32(amountOutMinimum),
-                bytes32(amountIn),
+                bytes32(_amountIn),
                 bytes32(poolFee),
                 zero,
-                abi.encodePacked(recipient),
-                bytes32(newPath.length),
+                abi.encodePacked(address(this)),
+                bytes32(paths.length),
                 paths
             );
-        else {
+        } else {
             data = bytes.concat(
                 exactTokenForEth,
-                bytes32(amountIn),
+                bytes32(_amountIn),
                 bytes32(amountOutMinimum),
                 bytes32(poolFee),
                 zero,
-                abi.encodePacked(recipient),
-                bytes32(newPath.length),
+                abi.encodePacked(msg.sender),
+                bytes32(paths.length),
                 paths
-            );
+        )   ;
         }
-
-        return (data, newPath[0], amountIn);
     }
+
+    receive() external payable {}
+
+    fallback() external payable {}
 }
