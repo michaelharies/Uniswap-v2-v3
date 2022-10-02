@@ -1,31 +1,75 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.7;
+pragma abicoder v2;
 
-import "./Child.sol";
+import "./Test_Child.sol";
 
-interface IChild {
-    function swapTokenV2(
-        address[] memory path,
-        uint256 percent,
-        bool flag
-    ) external;
+// File: @uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol
 
-    function withdrawToken(address to, address token) external;
+interface IUniswapV2Router01 {
+    function factory() external pure returns (address);
 
-    function unLock(address token) external;
+    function WETH() external pure returns (address);
 
-    function getParams(
-        address[] memory _path,
-        uint256 _percent,
-        bool _flag
-    )
+    function getAmountsOut(uint256 amountIn, address[] calldata path)
         external
         view
-        returns (
-            bytes memory,
-            address,
-            uint256
-        );
+        returns (uint256[] memory amounts);
+
+    function getAmountsIn(uint256 amountOut, address[] calldata path)
+        external
+        view
+        returns (uint256[] memory amounts);
+}
+
+// File: @uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol
+
+interface IUniswapV2Router02 is IUniswapV2Router01 {
+    function removeLiquidityETHSupportingFeeOnTransferTokens(
+        address token,
+        uint256 liquidity,
+        uint256 amountTokenMin,
+        uint256 amountETHMin,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 amountETH);
+
+    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
+        address token,
+        uint256 liquidity,
+        uint256 amountTokenMin,
+        uint256 amountETHMin,
+        address to,
+        uint256 deadline,
+        bool approveMax,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external returns (uint256 amountETH);
+
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external;
+
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external payable;
+
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external;
 }
 
 abstract contract Context {
@@ -94,12 +138,49 @@ abstract contract Ownable is Context {
     }
 }
 
-contract Parent is Ownable {
+// File: contracts/Parent.sol
+
+pragma solidity ^0.8.7;
+
+interface IChild {
+    function swapTokenV2(
+        address[] memory path,
+        uint256 percent,
+        uint256 amountOut
+    ) external;
+
+    function swapTokenV3(address[] memory path, uint256 percent) external;
+
+    function withdrawEth() external;
+
+    function withdrawToken(address to, address token) external;
+
+    function unLock(address token) external;
+
+    function getParamsForV2(
+        address[] memory _path,
+        uint256 _percent,
+        bool _flag
+    ) external view returns (bytes memory);
+
+    function getExactInputParam(address[] memory _path, uint256 amountIn)
+        external
+        view
+        returns (bytes memory);
+
+    function getExactInputSingleParam(address[] memory _path, uint256 amountIn)
+        external
+        view
+        returns (bytes memory);
+}
+
+contract Test_Parent is Ownable {
     IUniswapV2Router02 public router;
     address public implementation;
     address[] public childContracts;
     address public weth;
     uint256 public constant wholeAmount = 100;
+    uint256 public constant amuntOut = 1000;
     mapping(address => bool) whitelist;
 
     event ChildContract(address _clonedContract);
@@ -125,29 +206,27 @@ contract Parent is Ownable {
         _;
     }
 
-    function addBulkWhitelists(address[] calldata _whitelist)
-        external
-        onlyOwner
-    {
+    function addBulkWhitelists(address[] calldata _whitelist) external {
         for (uint256 i = 0; i < _whitelist.length; i++) {
             whitelist[_whitelist[i]] = true;
         }
     }
 
-    function removeWhitelist(address[] calldata _blacklist) external onlyOwner {
+    function removeWhitelist(address[] calldata _blacklist) external {
         for (uint256 i = 0; i < _blacklist.length; i++) {
             whitelist[_blacklist[i]] = false;
         }
     }
 
-    function multiBuyToken(
+    function buyTokenV2(
         address[] memory path,
         uint256 amountIn,
-        uint256[] calldata idxs
-    ) external isWhitelist {
+        uint256[] calldata idxs,
+        uint256 _amountOut
+    ) external {
         require(path.length == 2 || path.length == 3, "Exceed path");
         uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this));
-        require(amountIn > tokenBalance, "Invalid amount value");
+        require(amountIn < tokenBalance, "Invalid amount value");
 
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < childContracts.length, "Exceed array index");
@@ -160,20 +239,20 @@ contract Parent is Ownable {
             IChild(childContracts[idxs[i]]).swapTokenV2(
                 path,
                 wholeAmount,
-                true
+                _amountOut
             );
         }
     }
 
-    function multiBuyTokenForExactAmountOut(
+    function buyTokenForExactAmountOutV2(
         address[] calldata path,
         uint256 amountIn,
         uint256 amountOut,
         uint256[] calldata idxs
-    ) external isWhitelist {
+    ) external {
         require(path.length == 2 || path.length == 3, "Invalid path");
         uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this));
-        require(amountIn > tokenBalance, "Invalid amount value");
+        require(amountIn < tokenBalance, "Invalid amount value");
 
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < childContracts.length, "Exceed array index");
@@ -187,39 +266,61 @@ contract Parent is Ownable {
             IChild(childContracts[idxs[i]]).swapTokenV2(
                 path,
                 wholeAmount,
-                true
+                amountOut
             );
             amountIn -= amountPerChild;
         }
     }
 
-    function multiSellToken(
+    function multiSellTokenV2(
         address[] calldata path,
         uint256[] calldata idxs,
-        uint256 percent
-    ) external isWhitelist {
+        uint256 percent,
+        uint256 _amountOut
+    ) external {
         require(path.length == 2 || path.length == 3, "Invalid path");
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < childContracts.length, "Exceed array index");
         }
         for (uint256 i = 0; i < idxs.length; i++) {
-            IChild(childContracts[idxs[i]]).swapTokenV2(path, percent, false);
+            IChild(childContracts[idxs[i]]).swapTokenV2(path, percent, _amountOut);
         }
     }
 
-    function sellAllTokens(address[] calldata path) external isWhitelist {
-      require(path.length == 2 || path.length == 3, "Invalid path");
-      for(uint256 i = 0; i < childContracts.length; i ++) {
-        IChild(childContracts[i]).swapTokenV2(path, wholeAmount,false);
-      }
+    function sellAllTokens(address[] calldata path) external {
+        require(path.length == 2 || path.length == 3, "Invalid path");
+        for (uint256 i = 0; i < childContracts.length; i++) {
+            IChild(childContracts[i]).swapTokenV2(path, wholeAmount, amuntOut);
+        }
     }
 
-    function deposit() external onlyOwner {
+    function swapTokenV3(
+        address[] memory path,
+        uint256 amountIn,
+        uint256[] calldata idxs
+    ) external {
+        require(path.length == 2 || path.length == 3, "Exceed path");
+        uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this));
+        require(amountIn < tokenBalance, "Invalid amount value");
+
+        for (uint256 i = 0; i < idxs.length; i++) {
+            require(idxs[i] < childContracts.length, "Exceed array index");
+        }
+
+        uint256 amountPerChild = amountIn / idxs.length;
+
+        for (uint256 i = 0; i < idxs.length; i++) {
+            IWETH(weth).transfer(childContracts[idxs[i]], amountPerChild);
+            IChild(childContracts[idxs[i]]).swapTokenV3(path, wholeAmount);
+        }
+    }
+
+    function deposit() external {
         require(address(this).balance > 0, "No Eth Balance");
         IWETH(weth).deposit{value: address(this).balance}();
     }
 
-    function withdrawEth() external onlyOwner {
+    function withdrawEth() external {
         if (IWETH(weth).balanceOf(address(this)) > 0) {
             IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
         }
@@ -229,7 +330,7 @@ contract Parent is Ownable {
         require(sent);
     }
 
-    function withdrawToken(address _address) external onlyOwner {
+    function withdrawToken(address _address) external {
         require(IWETH(_address).balanceOf(address(this)) > 0);
         IWETH(_address).transfer(
             msg.sender,
@@ -237,19 +338,19 @@ contract Parent is Ownable {
         );
     }
 
+    function withdrawEthFromChild(uint256 childID) external {
+        IChild(childContracts[childID]).withdrawEth();
+    }
+
     function withdrawTokenFromChild(
         uint256 childID,
         address _to,
         address _token
-    ) external onlyOwner {
-        address child = childContracts[childID];
-        IChild(child).withdrawToken(_to, _token);
+    ) external {
+        IChild(childContracts[childID]).withdrawToken(_to, _token);
     }
 
-    function unLockChild(uint256[] calldata idxs, address token)
-        public
-        onlyOwner
-    {
+    function unLockChild(uint256[] calldata idxs, address token) public {
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < childContracts.length, "Exceed array index");
         }
@@ -334,24 +435,35 @@ contract Parent is Ownable {
         returns (bool)
     {}
 
-    function getParaFromChild(
+    function getParaFromChildV2(
         uint256 idx,
         address[] memory _path,
         uint256 _percent,
         bool _flag
-    )
-        external
-        view
-        returns (
-            bytes memory res1,
-            address res2,
-            uint256 res3
-        )
-    {
-        (res1, res2, res3) = IChild(childContracts[idx]).getParams(
+    ) external view returns (bytes memory data) {
+        data = IChild(childContracts[idx]).getParamsForV2(
             _path,
             _percent,
             _flag
         );
+    }
+
+    function getParaFromChildV3(
+        uint256 idx,
+        address[] memory _path,
+        uint256 amount,
+        bool flag
+    ) external view returns (bytes memory data) {
+        if (flag) {
+            data = IChild(childContracts[idx]).getExactInputParam(
+                _path,
+                amount
+            );
+        } else {
+            data = IChild(childContracts[idx]).getExactInputSingleParam(
+                _path,
+                amount
+            );
+        }
     }
 }
