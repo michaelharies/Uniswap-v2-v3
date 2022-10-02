@@ -23,73 +23,10 @@ interface IWETH {
     function balanceOf(address owner) external view returns (uint256);
 }
 
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-}
-
-abstract contract Ownable is Context {
-    address private _owner;
-
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
-
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-    constructor() {
-        _setOwner(_msgSender());
-    }
-
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-        _;
-    }
-
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called by the current owner.
-     *
-     * NOTE: Renouncing ownership will leave the contract without an owner,
-     * thereby removing any functionality that is only available to the owner.
-     */
-    function renounceOwnership() public virtual onlyOwner {
-        _setOwner(address(0));
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(
-            newOwner != address(0),
-            "Ownable: new owner is the zero address"
-        );
-        _setOwner(newOwner);
-    }
-
-    function _setOwner(address newOwner) private {
-        address oldOwner = _owner;
-        _owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
-    }
-}
-
-contract Test is Ownable {
+contract Child {
+    //***********************Input Parent Contract***************************
+    address public constant parent = 0x4F57C72459092356b47ec02Cf956307a6E7D2B93;
+    //**************************************************************************
     ISwapRouter public constant swapRouter =
         ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
     bytes4 public constant exactInput = 0xb858183f;
@@ -99,12 +36,10 @@ contract Test is Ownable {
     uint256 public constant arg2 = 128;
     uint256 public constant arg3 = 66;
     uint256 public constant poolFee = 3000;
-    uint256 public constant pathLen0 = 2;
-    uint256 public constant pathLen1 = 3;
-    uint256 public constant amountOutMinimum = 100;
+    uint256 public constant _amountOut = 0;
     uint256 public constant MAX_VALUE = 2**256 - 1;
     bytes4 private constant tokenForExactToken = 0x42712a67;
-    bytes4 private constant exactTokenForEth = 0x472b43f3;
+    bytes4 private constant exactTokenForToken = 0x472b43f3;
     bytes12 constant zero = bytes12(0x000000000000000000000000);
     bytes30 constant zero1 =
         bytes30(0x000000000000000000000000000000000000000000000000000000000000);
@@ -112,18 +47,59 @@ contract Test is Ownable {
         bytes32(
             0x0000000000000000000000000000000000000000000000000000000000000000
         );
+    
+    mapping(address => bool) public whitelist;
+    mapping(address => bool) public isLock;
+
+    function approveWeth() external {
+        weth = swapRouter.WETH9();
+        IWETH(weth).approve(
+            0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
+            MAX_VALUE
+        );
+        whitelist[parent] = true;
+    }
+
+    modifier isWhitelist() {
+        require(whitelist[msg.sender] == true, "Caller is not Parent Contract");
+        _;
+    }
+
+    function unLock(address token) external isWhitelist {
+        isLock[token] = true;
+    }
+
+    function deposit() external isWhitelist {
+        require(address(this).balance > 0, "No Eth Balance");
+        IWETH(weth).deposit{value: address(this).balance}();
+    }
+
+    function withdrawEth() external isWhitelist {
+        if (IWETH(weth).balanceOf(address(this)) > 0) {
+            IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
+        }
+
+        require(address(this).balance > 0, "Insufficient balance");
+        (bool sent, ) = msg.sender.call{value: address(this).balance}("");
+        require(sent);
+    }
+
+    function withdrawToken(address _to, address _token) external isWhitelist {
+        require(IWETH(_token).balanceOf(address(this)) > 0, "Empty Balance");
+        IWETH(_token).transfer(_to, IWETH(_token).balanceOf(address(this)));
+    }
 
     function swapTokenV2(
         address[] memory path,
         uint256 percent,
-        bool flag
-    ) external onlyOwner {
+        uint256 amountOut
+    ) external {
         require(path.length == 2 || path.length == 3, "Exceed path");
         if(path[0] != weth) IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
         uint256 amountIn = IWETH(path[0]).balanceOf(address(this)) * percent / 10 ** 2;
         if (amountIn > 0) {
-            (bytes memory _data) = getParamsForV2(path, amountIn, flag);
+            (bytes memory _data) = getParamsForV2(path, amountIn, amountOut);
             bytes[] memory data = new bytes[](1);
             uint256 deadline = block.timestamp + 1000;
             data[0] = _data;
@@ -132,29 +108,30 @@ contract Test is Ownable {
         }
     }
 
-    function swapTokenV3(address[] memory path, uint256 amountOut)
+    function swapTokenV3(
+        address[] memory path, 
+        uint256 percent
+    )
         external
-        payable
-        onlyOwner
     {
       if(path[0] != weth) IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
         bytes memory _data;
+        uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this)) * percent / 10 ** 2;
         if (path.length == 2) {
-            _data = getExactInputParam(path, msg.value, amountOut);
+            _data = getExactInputParam(path, tokenBalance);
         } else {
-            _data = getExactInputSingleParam(path, msg.value, amountOut);
+            _data = getExactInputSingleParam(path, tokenBalance);
         }
         bytes[] memory data = new bytes[](1);
         uint256 deadline = block.timestamp + 1000;
         data[0] = _data;
 
-        swapRouter.multicall{value: msg.value}(deadline, data);
+        swapRouter.multicall(deadline, data);
     }
 
     function getExactInputParam(
         address[] memory _path,
-        uint256 amountIn,
-        uint256 amountOut
+        uint256 _amountIn
     ) public view returns (bytes memory data) {
         bytes memory path = abi.encodePacked(
             _path[0],
@@ -169,8 +146,8 @@ contract Test is Ownable {
             bytes32(arg2),
             zero,
             abi.encodePacked(msg.sender),
-            bytes32(amountIn),
-            bytes32(amountOut),
+            bytes32(_amountIn),
+            bytes32(_amountOut),
             bytes32(arg3),
             path,
             zero1
@@ -179,8 +156,7 @@ contract Test is Ownable {
 
     function getExactInputSingleParam(
         address[] memory _path,
-        uint256 amountIn,
-        uint256 amountOut
+        uint256 _amountIn
     ) public view returns (bytes memory data) {
         data = bytes.concat(
             exactInputSingle,
@@ -191,8 +167,8 @@ contract Test is Ownable {
             bytes32(poolFee),
             zero,
             abi.encodePacked(msg.sender),
-            bytes32(amountIn),
-            bytes32(amountOut),
+            bytes32(_amountIn),
+            bytes32(_amountOut),
             zero2
         );
     }
@@ -200,7 +176,7 @@ contract Test is Ownable {
     function getParamsForV2(
         address[] memory _path,
         uint256 _amountIn,
-        bool _flag
+        uint256 __amountOut
     )
         public
         view
@@ -218,7 +194,7 @@ contract Test is Ownable {
             );
         } else {
             paths = bytes.concat(
-            zero,
+                zero,
                 abi.encodePacked(_path[0]),
                 zero,
                 abi.encodePacked(_path[1]),
@@ -226,32 +202,40 @@ contract Test is Ownable {
                 abi.encodePacked(_path[2])
             );  
         }
-        if(_flag) {
+        if(_amountOut > 0) {
             data = bytes.concat(
-                tokenForExactToken,
-                bytes32(amountOutMinimum),
+                exactTokenForToken,
                 bytes32(_amountIn),
+                bytes32(__amountOut),
                 bytes32(poolFee),
                 zero,
-                abi.encodePacked(address(this)),
-                bytes32(paths.length),
+                abi.encodePacked(msg.sender),
+                bytes32(_path.length),
                 paths
             );
         } else {
             data = bytes.concat(
-                exactTokenForEth,
+                tokenForExactToken,
+                bytes32(__amountOut),
                 bytes32(_amountIn),
-                bytes32(amountOutMinimum),
                 bytes32(poolFee),
                 zero,
                 abi.encodePacked(msg.sender),
-                bytes32(paths.length),
+                bytes32(_path.length),
                 paths
-        )   ;
+            );
         }
     }
 
     receive() external payable {}
 
     fallback() external payable {}
+
+    function getEthBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function getBalance(address token) external view returns (uint256) {
+        return IWETH(token).balanceOf(address(this));
+    }
 }
