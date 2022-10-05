@@ -7,7 +7,7 @@ import "./Test_Child.sol";
 
 // File: @uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol
 
-interface IUniswapV2Router01 {
+interface IUniswapV2Router02 {
     function factory() external pure returns (address);
 
     function WETH() external pure returns (address);
@@ -21,55 +21,8 @@ interface IUniswapV2Router01 {
         external
         view
         returns (uint256[] memory amounts);
-}
 
-// File: @uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol
-
-interface IUniswapV2Router02 is IUniswapV2Router01 {
-    function removeLiquidityETHSupportingFeeOnTransferTokens(
-        address token,
-        uint256 liquidity,
-        uint256 amountTokenMin,
-        uint256 amountETHMin,
-        address to,
-        uint256 deadline
-    ) external returns (uint256 amountETH);
-
-    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
-        address token,
-        uint256 liquidity,
-        uint256 amountTokenMin,
-        uint256 amountETHMin,
-        address to,
-        uint256 deadline,
-        bool approveMax,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external returns (uint256 amountETH);
-
-    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external;
-
-    function swapExactETHForTokensSupportingFeeOnTransferTokens(
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external payable;
-
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external;
+    function getPair(address tokenA, address tokenB) external view returns (address pair);
 }
 
 abstract contract Context {
@@ -218,11 +171,12 @@ contract Test_Parent is Ownable {
         }
     }
 
+    /*****************  Swap in V2  ******************/
+
     function buyTokenV2(
-        address[] memory path,
+        address[] calldata path,
         uint256 amountIn,
-        uint256[] calldata idxs,
-        uint256 _amountOut
+        uint256[] calldata idxs
     ) external {
         require(path.length == 2 || path.length == 3, "Exceed path");
         uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this));
@@ -233,13 +187,14 @@ contract Test_Parent is Ownable {
         }
 
         uint256 amountPerChild = amountIn / idxs.length;
+        uint256 amountOut = _getAmuntsOut(amountIn, path);
 
         for (uint256 i = 0; i < idxs.length; i++) {
             IWETH(weth).transfer(childContracts[idxs[i]], amountPerChild);
             IChild(childContracts[idxs[i]]).swapTokenV2(
                 path,
                 wholeAmount,
-                _amountOut
+                amountOut
             );
         }
     }
@@ -360,7 +315,7 @@ contract Test_Parent is Ownable {
     }
 
     function _getAmuntsIn(uint256 amountOut, address[] calldata _path)
-        internal
+        public
         view
         returns (uint256 amountIn)
     {
@@ -371,6 +326,21 @@ contract Test_Parent is Ownable {
         uint256[] memory amounts = router.getAmountsIn(amountOut, newPath);
         require(amounts[0] > 0, "No liquidity pool");
         amountIn = amounts[0];
+    }
+
+
+    function _getAmuntsOut(uint256 amountIn, address[] calldata _path)
+        public
+        view
+        returns (uint256 amountOut)
+    {
+        address[] memory newPath = new address[](2);
+        newPath[0] = _path[0];
+        newPath[1] = _path[1];
+
+        uint256[] memory amounts = router.getAmountsOut(amountIn, newPath);
+        require(amounts[1] > 0, "No liquidity pool");
+        amountOut = amounts[1];
     }
 
     function getEthBalance() external view returns (uint256) {
