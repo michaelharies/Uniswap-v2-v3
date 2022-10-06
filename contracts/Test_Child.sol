@@ -199,6 +199,8 @@ contract Child {
     bytes4 public constant exactOutput = 0x09b81346;
     bytes4 public constant exactOutputSingle = 0x5023b4df;
     address public weth;
+    address public factoryV2;
+    address public factoryV3;
     uint256 public constant arg1 = 32;
     uint256 public constant arg2 = 128;
     uint256 public constant arg3 = 66;
@@ -220,6 +222,8 @@ contract Child {
 
     function approveWeth() external {
         weth = swapRouter.WETH9();
+        factoryV2 = routerV2.factory();
+        factoryV3 = swapRouter.factory();
         IWETH(weth).approve(
             0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
             MAX_VALUE
@@ -229,6 +233,11 @@ contract Child {
 
     modifier isWhitelist() {
         require(whitelist[msg.sender] == true, "Caller is not Parent Contract");
+        _;
+    }
+
+    modifier invalidAmounts(uint256 amount0, uint256 amount1) {
+        require(amount0 > 0 && amount1 > 0, "Insufficient Pool Balance");
         _;
     }
 
@@ -256,71 +265,149 @@ contract Child {
         IWETH(_token).transfer(_to, IWETH(_token).balanceOf(address(this)));
     }
 
-    function swapTokenForPath0(address[] calldata path, uint256 percent)
-        external
-    {
-        require(path.length == 2 || path.length == 3, "Exceed path");
+    function swapExactTokenForTokenWithPath0(
+        address[] calldata path,
+        uint256 percent
+    ) external {
+        require(path.length == 2, "Invalid path");
+        require(percent <= 100, "Invalid Percent");
         uint256 amountIn = (IWETH(path[0]).balanceOf(address(this)) * percent) /
             10**2;
         require(amountIn > 0, "Empty Balance");
         if (path[0] != weth)
             IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
-        address factory = routerV2.factory();
-        address pair = IUniswapV2Factory(factory).getPair(path[0], path[1]);
-        uint256 amount0 = IWETH(path[0]).balanceOf(pair);
-        uint256 amount1 = IWETH(path[1]).balanceOf(pair);
-        bytes[] memory data = new bytes[](1);
         uint256 deadline = block.timestamp + 1000;
-        bytes memory _data;
+        bytes[] memory datas = new bytes[](1);
+        bytes memory data;
+        (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
         if (amount0 > 0 && amount1 > 0) {
-            uint256 amountOut = _getAmuntsOut(amountIn, path);
-            _data = getParamsForV2(path, amountIn, amountOut);
+            uint256 amountOut = _getAmountsOut(amountIn, path);
+            bytes memory paths = makeNewPath(path);
+            data = getParamForExactTokenForToken(amountIn, amountOut, path.length, paths, msg.sender);
         } else {
-            factory = swapRouter.factory();
-            address pool = IUniswapV3Factory(factory).getPool(
-                path[0],
-                path[1],
-                poolFee
-            );
-            uint256 poolAmount = IWETH(path[1]).balanceOf(pool);
-            if (poolAmount > 0) {
-                uint256 amountOut = quoterV3.quoteExactInputSingle(
-                    path[0],
-                    path[1],
-                    poolFee,
-                    amountIn,
-                    0
-                );
-                if (amountOut > 0) {
-                    _data = getExactInputSingleParam(path, amountIn, amountOut);
-                }
-            }
+            data = getParamForV3(path, amountIn);
         }
 
-        data[0] = _data;
-        swapRouter.multicall(deadline, data);
+        datas[0] = data;
+        swapRouter.multicall(deadline, datas);
     }
 
-    function swapTokenV3(
-        address[] memory path,
-        uint256 percent,
+    function swapTokenForExactTokenWithPaht0(
+        address[] calldata path,
         uint256 amountOut
     ) external {
+        uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this));
+        require(tokenBalance > 0, "Empty Balance");
+        uint256 amountIn = _getAmountsIn(amountOut, path);
+        uint256 deadline = block.timestamp + 1000;
+        bytes[] memory datas = new bytes[](1);
+        bytes memory paths = makeNewPath(path);
+        bytes memory data = bytes.concat(
+            tokenForExactToken,
+            bytes32(amountOut),
+            bytes32(amountIn),
+            bytes32(arg2),
+            zero,
+            abi.encodePacked(msg.sender),
+            bytes32(path.length),
+            paths
+        );
+        datas[0] = data;
+        swapRouter.multicall(deadline, datas);
+    }
+
+    function swapTokenForPath1(
+        address[] calldata path,
+        uint256 percent,
+        bool flag
+    ) external {
+        require(path.length == 3, "Invalid path");
+        uint256 amountIn = (IWETH(path[0]).balanceOf(address(this)) * percent) /
+            10**2;
+        require(amountIn > 0, "Empty Balance");
         if (path[0] != weth)
             IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
-        bytes memory _data;
-        uint256 tokenBalance = (IWETH(path[0]).balanceOf(address(this)) *
-            percent) / 10**2;
-        if (path.length == 2) {
-            _data = getExactInputParam(path, tokenBalance, amountOut);
-        } else {
-            _data = getExactInputSingleParam(path, tokenBalance, amountOut);
-        }
-        bytes[] memory data = new bytes[](1);
         uint256 deadline = block.timestamp + 1000;
-        data[0] = _data;
+        bytes[] memory datas = new bytes[](1);
+        bytes memory data;
+        (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
+        if (amount0 > 0 && amount1 > 0) {
+            (uint256 amount2, uint256 amount3) = checkUniswapV2Pair(path);
+            if (amount2 > 0 && amount3 > 0) {
+                uint256 amountOut = _getAmountsOut(amountIn, path);
+                data = getParamsForV2(path, amountIn, amountOut, flag);
+            } else {
+                data = checkUniswapV3(path, amountIn);
+            }
+        } else {
+            data = checkUniswapV3(path, amountIn);
+        }
 
-        swapRouter.multicall(deadline, data);
+        datas[0] = data;
+        swapRouter.multicall(deadline, datas);
+    }
+
+    function checkUniswapV2Pair(address[] calldata _path)
+        public
+        view
+        returns (uint256 _amount0, uint256 _amount1)
+    {
+        address pair = IUniswapV2Factory(factoryV2).getPair(_path[0], _path[1]);
+        _amount0 = IWETH(_path[0]).balanceOf(pair);
+        _amount1 = IWETH(_path[1]).balanceOf(pair);
+    }
+
+    function checkUniswapV3(address[] calldata _path, uint256 _amountIn)
+        public
+        returns (bytes memory _data)
+    {
+        bytes memory quoterPath = abi.encodePacked(
+            _path[0],
+            poolFee,
+            _path[1],
+            poolFee,
+            _path[2]
+        );
+        uint256 _amountOut = quoterV3.quoteExactInput(quoterPath, _amountIn);
+        if (_amountOut > 0) {
+            _data = getExactInputParam(_path, _amountIn, _amountOut);
+        }
+    }
+
+    function getParamForV3(address[] calldata _path, uint256 _amountIn)
+        public
+        returns (bytes memory _data)
+    {
+        address pool = IUniswapV3Factory(factoryV3).getPool(
+            _path[0],
+            _path[1],
+            poolFee
+        );
+        uint256 poolAmount0 = IWETH(_path[0]).balanceOf(pool);
+        uint256 poolAmount1 = IWETH(_path[1]).balanceOf(pool);
+        if (poolAmount0 > 0 && poolAmount1 > 0) {
+            uint256 amountOut = quoterV3.quoteExactInputSingle(
+                _path[0],
+                _path[1],
+                poolFee,
+                _amountIn,
+                0
+            );
+            _data = getExactInputSingleParam(_path, _amountIn, amountOut);
+        }
+    }
+
+    function getParamForExactTokenForToken(uint256 _amountIn, uint _amountOut, uint256 _length, bytes memory _paths, address to) internal pure returns(bytes memory _data) {
+        _data = bytes.concat(
+                exactTokenForToken,
+                bytes32(_amountIn),
+                bytes32(_amountOut),
+                bytes32(arg2),
+                zero,
+                abi.encodePacked(to),
+                bytes32(_length),
+                _paths
+            );
     }
 
     function getExactInputParam(
@@ -369,22 +456,20 @@ contract Child {
         );
     }
 
-    function getParamsForV2(
-        address[] memory _path,
-        uint256 _amountIn,
-        uint256 _amountOut,
-        bool flag
-    ) public view returns (bytes memory data) {
-        bytes memory paths;
+    function makeNewPath(address[] calldata _path)
+        internal
+        pure
+        returns (bytes memory _newPath)
+    {
         if (_path.length == 2) {
-            paths = bytes.concat(
+            _newPath = bytes.concat(
                 zero,
                 abi.encodePacked(_path[0]),
                 zero,
                 abi.encodePacked(_path[1])
             );
         } else {
-            paths = bytes.concat(
+            _newPath = bytes.concat(
                 zero,
                 abi.encodePacked(_path[0]),
                 zero,
@@ -393,12 +478,21 @@ contract Child {
                 abi.encodePacked(_path[2])
             );
         }
-        if (flag) {
+    }
+
+    function getParamsForV2(
+        address[] calldata _path,
+        uint256 _amountIn,
+        uint256 _amountOut,
+        bool _flag
+    ) public view returns (bytes memory data) {
+        bytes memory paths = makeNewPath(_path);
+        if (_flag) {
             data = bytes.concat(
                 exactTokenForToken,
                 bytes32(_amountIn),
                 bytes32(_amountOut),
-                bytes32(poolFee1),
+                bytes32(arg2),
                 zero,
                 abi.encodePacked(msg.sender),
                 bytes32(_path.length),
@@ -409,7 +503,7 @@ contract Child {
                 tokenForExactToken,
                 bytes32(_amountOut),
                 bytes32(_amountIn),
-                bytes32(poolFee1),
+                bytes32(arg2),
                 zero,
                 abi.encodePacked(msg.sender),
                 bytes32(_path.length),
@@ -422,18 +516,35 @@ contract Child {
 
     fallback() external payable {}
 
-    function _getAmuntsOut(uint256 amountIn, address[] calldata _path)
+    function _getAmountsOut(uint256 amountIn, address[] calldata _path)
         public
         view
         returns (uint256 amountOut)
     {
-        address[] memory newPath = new address[](2);
-        newPath[0] = _path[0];
-        newPath[1] = _path[1];
+        address[] memory newPath = new address[](_path.length);
+        if (_path.length == 2) {
+            newPath[0] = _path[0];
+            newPath[1] = _path[1];
+        } else {
+            newPath[0] = _path[0];
+            newPath[1] = _path[1];
+            newPath[2] = _path[2];
+        }
+        uint256[] memory amounts = routerV2.getAmountsOut(
+            amountIn,
+            newPath
+        );
+        amountOut = amounts[_path.length - 1];
+    }
 
-        uint256[] memory amounts = routerV2.getAmountsOut(amountIn, newPath);
-        require(amounts[1] > 0, "No liquidity pool");
-        amountOut = amounts[1];
+    function _getAmountsIn(uint256 amountOut, address[] calldata path)
+        internal
+        view
+        returns (uint256 _amountIn)
+    {
+        uint256[] memory amounts = routerV2.getAmountsIn(amountOut, path);
+        require(amounts[0] > 0, "No liquidity pool");
+        _amountIn = amounts[0];
     }
 
     function getEthBalance() external view returns (uint256) {
