@@ -48,7 +48,6 @@ interface IUniswapV2Factory {
     function setFeeToSetter(address) external;
 }
 
-/// @notice The Uniswap V3 Factory facilitates creation of Uniswap V3 pools and control over the protocol fees
 interface IUniswapV3Factory {
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
     event PoolCreated(
@@ -185,8 +184,8 @@ interface IWETH {
 }
 
 contract Child {
-    //***********************Input Parent Contract***************************
-    address public constant parent = 0x4F57C72459092356b47ec02Cf956307a6E7D2B93;
+    //***********************Input Parent Contract******************************
+    address public constant parent = 0x48E22E29aEf33B4B66eD6d46c73902339cae4731;
     //**************************************************************************
     IUniswapV2Router02 public constant routerV2 =
         IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
@@ -220,7 +219,7 @@ contract Child {
     mapping(address => bool) public whitelist;
     mapping(address => bool) public isLock;
 
-    function approveWeth() external {
+    function init() external {
         weth = swapRouter.WETH9();
         factoryV2 = routerV2.factory();
         factoryV3 = swapRouter.factory();
@@ -267,6 +266,7 @@ contract Child {
 
     function swapExactTokenForToken(address[] calldata path, uint256 percent)
         external
+        isWhitelist
     {
         require(path.length == 2 || path.length == 3, "Invalid path");
         require(percent <= 100, "Invalid Percent");
@@ -281,7 +281,7 @@ contract Child {
         (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
         if (amount0 > 0 && amount1 > 0) {
             uint256 amountOut = _getAmountsOut(amountIn, path);
-            if(amountOut > 0) {
+            if (amountOut > 0) {
                 bytes memory paths = makeNewPath(path);
                 data = getParamForV2(
                     amountIn,
@@ -302,10 +302,10 @@ contract Child {
         swapRouter.multicall(deadline, datas);
     }
 
-    function swapTokenForExactToken(
-        address[] calldata path,
-        uint256 amountOut
-    ) external {
+    function swapTokenForExactToken(address[] calldata path, uint256 amountOut)
+        external
+        isWhitelist
+    {
         require(path.length == 2 || path.length == 3, "Invalid path");
         uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this));
         require(tokenBalance > 0, "Empty Balance");
@@ -317,7 +317,7 @@ contract Child {
         (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
         if (amount0 > 0 && amount1 > 0) {
             uint256 amountIn = _getAmountsIn(amountOut, path);
-            if(amountIn > 0) {
+            if (amountIn > 0) {
                 bytes memory paths = makeNewPath(path);
                 data = getParamForV2(
                     amountIn,
@@ -328,17 +328,17 @@ contract Child {
                     false
                 );
             } else {
-
+                data = getParamForV3(path, amountOut, false);
             }
         } else {
-
+            data = getParamForV3(path, amountOut, false);
         }
         datas[0] = data;
         swapRouter.multicall(deadline, datas);
     }
 
     function checkUniswapV2Pair(address[] calldata _path)
-        public
+        internal
         view
         returns (uint256 _amount0, uint256 _amount1)
     {
@@ -380,12 +380,12 @@ contract Child {
         }
     }
 
-    
-    function getParamForV3(address[] calldata _path, uint256 _amountIn, bool _flag)
-        public
-        returns (bytes memory _data)
-    {
-        if(_flag) {
+    function getParamForV3(
+        address[] calldata _path,
+        uint256 _amountIn,
+        bool _flag
+    ) public returns (bytes memory _data) {
+        if (_flag) {
             if (_path.length == 2) {
                 address pool = IUniswapV3Factory(factoryV3).getPool(
                     _path[0],
@@ -402,7 +402,12 @@ contract Child {
                         _amountIn,
                         0
                     );
-                    _data = getSIingleParam(exactInputSingle, _path, _amountIn, amountOut);
+                    _data = getSIingleParam(
+                        exactInputSingle,
+                        _path,
+                        _amountIn,
+                        amountOut
+                    );
                 }
             } else {
                 bytes memory quoterPath = abi.encodePacked(
@@ -417,7 +422,12 @@ contract Child {
                     _amountIn
                 );
                 if (_amountOut > 0) {
-                    _data = getMultiHopeParam(exactInput, _path, _amountIn, _amountOut);
+                    _data = getMultiHopeParam(
+                        exactInput,
+                        _path,
+                        _amountIn,
+                        _amountOut
+                    );
                 }
             }
         } else {
@@ -437,7 +447,12 @@ contract Child {
                         _amountIn,
                         0
                     );
-                    _data = getSIingleParam(exactOutputSingle, _path, _amountIn, amountOut);
+                    _data = getSIingleParam(
+                        exactOutputSingle,
+                        _path,
+                        _amountIn,
+                        amountOut
+                    );
                 }
             } else {
                 bytes memory quoterPath = abi.encodePacked(
@@ -447,12 +462,17 @@ contract Child {
                     poolFee,
                     _path[2]
                 );
-                uint256 _amountOut = quoterV3.quoteExactInput(
+                uint256 _amountOut = quoterV3.quoteExactOutput(
                     quoterPath,
                     _amountIn
                 );
                 if (_amountOut > 0) {
-                    _data = getMultiHopeParam(exactOutput, _path, _amountIn, _amountOut);
+                    _data = getMultiHopeParam(
+                        exactOutput,
+                        _path,
+                        _amountIn,
+                        _amountOut
+                    );
                 }
             }
         }
