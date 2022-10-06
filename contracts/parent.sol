@@ -78,7 +78,7 @@ interface IChild {
     function swapTokenForExactToken(address[] memory path, uint256 amountOut)
         external;
 
-    function withdrawEth() external;
+    function withdrawEth(address to) external;
 
     function withdrawToken(address to, address token) external;
 
@@ -94,8 +94,6 @@ contract Parent is Ownable {
     address public implementation;
     address[] public childContracts;
     address public weth;
-    uint256 public constant wholeAmount = 100;
-    uint256 public constant amuntOut = 1000;
     uint24 public constant poolFee = 3000;
     mapping(address => bool) whitelist;
 
@@ -150,7 +148,7 @@ contract Parent is Ownable {
     ) external isWhitelist {
         require(path.length == 2 || path.length == 3, "Exceed path");
         uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this));
-        require(amountIn < tokenBalance, "Invalid amount value");
+        require(amountIn <= tokenBalance, "Invalid amount value");
 
         for (uint256 i = 0; i < idxs.length; i++) {
             require(idxs[i] < childContracts.length, "Exceed array index");
@@ -262,8 +260,14 @@ contract Parent is Ownable {
         IWETH(token).transfer(to, IWETH(token).balanceOf(address(this)));
     }
 
-    function withdrawEthFromChild(uint256 childID) external isWhitelist {
-        IChild(childContracts[childID]).withdrawEth();
+    function withdrawEthFromChild(uint256 childID, address to) external isWhitelist {
+        IChild(childContracts[childID]).withdrawEth(to);
+    }
+
+    function withdrawEthFromAllChild(address to) external isWhitelist {
+        for(uint256 i = 0; i < childContracts.length; i ++) {
+            IChild(childContracts[i]).withdrawEth(to);
+        }
     }
 
     function withdrawTokenFromChild(
@@ -272,6 +276,16 @@ contract Parent is Ownable {
         address _token
     ) external isWhitelist {
         IChild(childContracts[childID]).withdrawToken(_to, _token);
+    }
+
+    function withdrawTokenFromAllChild(
+        address _to,
+        address _token
+    ) external isWhitelist {
+        for(uint256 i = 0; i < childContracts.length; i ++) {
+            IChild(childContracts[i]).withdrawToken(_to, _token);
+        }
+
     }
 
     function unLockChild(uint256[] calldata idxs, address token)
@@ -283,6 +297,15 @@ contract Parent is Ownable {
         }
         for (uint256 i = 0; i < idxs.length; i++) {
             IChild(childContracts[idxs[i]]).unLock(token);
+        }
+    }
+
+    function unLockAllChild(address token)
+        external
+        isWhitelist
+    {
+        for (uint256 i = 0; i < childContracts.length; i++) {
+            IChild(childContracts[i]).unLock(token);
         }
     }
 

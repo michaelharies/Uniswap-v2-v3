@@ -19,66 +19,19 @@ interface IUniswapV2Router02 {
 }
 
 interface IUniswapV2Factory {
-    event PairCreated(
-        address indexed token0,
-        address indexed token1,
-        address pair,
-        uint256
-    );
-
-    function feeTo() external view returns (address);
-
-    function feeToSetter() external view returns (address);
-
     function getPair(address tokenA, address tokenB)
         external
         view
         returns (address pair);
-
-    function allPairs(uint256) external view returns (address pair);
-
-    function allPairsLength() external view returns (uint256);
-
-    function createPair(address tokenA, address tokenB)
-        external
-        returns (address pair);
-
-    function setFeeTo(address) external;
-
-    function setFeeToSetter(address) external;
 }
 
-/// @notice The Uniswap V3 Factory facilitates creation of Uniswap V3 pools and control over the protocol fees
 interface IUniswapV3Factory {
-    event OwnerChanged(address indexed oldOwner, address indexed newOwner);
-    event PoolCreated(
-        address indexed token0,
-        address indexed token1,
-        uint24 indexed fee,
-        int24 tickSpacing,
-        address pool
-    );
-    event FeeAmountEnabled(uint24 indexed fee, int24 indexed tickSpacing);
-
-    function owner() external view returns (address);
-
-    function feeAmountTickSpacing(uint24 fee) external view returns (int24);
 
     function getPool(
         address tokenA,
         address tokenB,
         uint24 fee
     ) external view returns (address pool);
-
-    function createPool(
-        address tokenA,
-        address tokenB,
-        uint24 fee
-    ) external returns (address pool);
-
-    function setOwner(address _owner) external;
-
-    function enableFeeAmount(uint24 fee, int24 tickSpacing) external;
 }
 
 interface IQuoter {
@@ -117,59 +70,6 @@ interface ISwapRouter {
 
     function factory() external view returns (address);
 
-    struct ExactInputSingleParams {
-        address tokenIn;
-        address tokenOut;
-        uint24 fee;
-        address recipient;
-        uint256 amountIn;
-        uint256 amountOutMinimum;
-        uint160 sqrtPriceLimitX96;
-    }
-
-    function exactInputSingle(ExactInputSingleParams calldata params)
-        external
-        payable
-        returns (uint256 amountOut);
-
-    struct ExactInputParams {
-        bytes path;
-        address recipient;
-        uint256 amountIn;
-        uint256 amountOutMinimum;
-    }
-
-    function exactInput(ExactInputParams calldata params)
-        external
-        payable
-        returns (uint256 amountOut);
-
-    struct ExactOutputSingleParams {
-        address tokenIn;
-        address tokenOut;
-        uint24 fee;
-        address recipient;
-        uint256 amountOut;
-        uint256 amountInMaximum;
-        uint160 sqrtPriceLimitX96;
-    }
-
-    function exactOutputSingle(ExactOutputSingleParams calldata params)
-        external
-        payable
-        returns (uint256 amountIn);
-
-    struct ExactOutputParams {
-        bytes path;
-        address recipient;
-        uint256 amountOut;
-        uint256 amountInMaximum;
-    }
-
-    function exactOutput(ExactOutputParams calldata params)
-        external
-        payable
-        returns (uint256 amountIn);
 }
 
 interface IWETH {
@@ -186,7 +86,7 @@ interface IWETH {
 
 contract Child {
     //***********************Input Parent Contract******************************
-    address public constant parent = 0xD34C2E778f1aFCB3BA64796A551af5DEA3372766;
+    address public constant parent = 0x66fD9DbDEcc8c1eF930eE0288aFEb32cc0c5aD0c;
     //**************************************************************************
     IUniswapV2Router02 public constant routerV2 =
         IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
@@ -236,13 +136,8 @@ contract Child {
         _;
     }
 
-    modifier invalidAmounts(uint256 amount0, uint256 amount1) {
-        require(amount0 > 0 && amount1 > 0, "Insufficient Pool Balance");
-        _;
-    }
-
     function unLock(address token) external isWhitelist {
-        isLock[token] = true;
+        isLock[token] = false;
     }
 
     function deposit() external isWhitelist {
@@ -250,25 +145,27 @@ contract Child {
         IWETH(weth).deposit{value: address(this).balance}();
     }
 
-    function withdrawEth() external isWhitelist {
+    function withdrawEth(address to) external isWhitelist {
         if (IWETH(weth).balanceOf(address(this)) > 0) {
             IWETH(weth).withdraw(IWETH(weth).balanceOf(address(this)));
         }
 
-        require(address(this).balance > 0, "Insufficient balance");
-        (bool sent, ) = msg.sender.call{value: address(this).balance}("");
-        require(sent);
+        if(address(this).balance > 0){
+            (bool sent, ) = to.call{value: address(this).balance}("");
+            require(sent);
+        }
     }
 
     function withdrawToken(address _to, address _token) external isWhitelist {
-        require(IWETH(_token).balanceOf(address(this)) > 0, "Empty Balance");
-        IWETH(_token).transfer(_to, IWETH(_token).balanceOf(address(this)));
+        if(IWETH(_token).balanceOf(address(this)) > 0) 
+            IWETH(_token).transfer(_to, IWETH(_token).balanceOf(address(this)));
     }
 
     function swapExactTokenForToken(address[] calldata path, uint256 percent)
         external
         isWhitelist
     {
+        require(!isLock[path[1]], "Already Locked");
         require(path.length == 2 || path.length == 3, "Invalid path");
         require(percent <= 100, "Invalid Percent");
         uint256 amountIn = (IWETH(path[0]).balanceOf(address(this)) * percent) /
@@ -289,7 +186,7 @@ contract Child {
                     amountOut,
                     path.length,
                     paths,
-                    msg.sender,
+                    address(this),
                     true
                 );
             } else {
@@ -300,7 +197,8 @@ contract Child {
         }
 
         datas[0] = data;
-        swapRouter.multicall(deadline, datas);
+        bytes[] memory results = swapRouter.multicall(deadline, datas);
+        if(results[0].length > 0) isLock[path[1]] = true;
     }
 
     function swapTokenForExactToken(address[] calldata path, uint256 amountOut)
@@ -325,7 +223,7 @@ contract Child {
                     amountOut,
                     path.length,
                     paths,
-                    msg.sender,
+                    address(this),
                     false
                 );
             } else {
@@ -497,7 +395,7 @@ contract Child {
             bytes32(arg1),
             bytes32(arg2),
             zero,
-            abi.encodePacked(msg.sender),
+            abi.encodePacked(address(this)),
             bytes32(_amountIn),
             bytes32(_amountOut),
             bytes32(arg3),
@@ -520,7 +418,7 @@ contract Child {
             abi.encodePacked(_path[1]),
             bytes32(poolFee1),
             zero,
-            abi.encodePacked(msg.sender),
+            abi.encodePacked(address(this)),
             bytes32(_amountIn),
             bytes32(_amountOut),
             zero2
@@ -551,38 +449,6 @@ contract Child {
         }
     }
 
-    function getParamsForV2(
-        address[] calldata _path,
-        uint256 _amountIn,
-        uint256 _amountOut,
-        bool _flag
-    ) public view returns (bytes memory data) {
-        bytes memory paths = makeNewPath(_path);
-        if (_flag) {
-            data = bytes.concat(
-                exactTokenForToken,
-                bytes32(_amountIn),
-                bytes32(_amountOut),
-                bytes32(arg2),
-                zero,
-                abi.encodePacked(msg.sender),
-                bytes32(_path.length),
-                paths
-            );
-        } else {
-            data = bytes.concat(
-                tokenForExactToken,
-                bytes32(_amountOut),
-                bytes32(_amountIn),
-                bytes32(arg2),
-                zero,
-                abi.encodePacked(msg.sender),
-                bytes32(_path.length),
-                paths
-            );
-        }
-    }
-
     receive() external payable {}
 
     fallback() external payable {}
@@ -603,13 +469,5 @@ contract Child {
     {
         uint256[] memory amounts = routerV2.getAmountsIn(amountOut, _path);
         _amountIn = amounts[0];
-    }
-
-    function getEthBalance() external view returns (uint256) {
-        return address(this).balance;
-    }
-
-    function getBalance(address token) external view returns (uint256) {
-        return IWETH(token).balanceOf(address(this));
     }
 }
