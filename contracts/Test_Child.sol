@@ -283,7 +283,13 @@ contract Child {
         if (amount0 > 0 && amount1 > 0) {
             uint256 amountOut = _getAmountsOut(amountIn, path);
             bytes memory paths = makeNewPath(path);
-            data = getParamForExactTokenForToken(amountIn, amountOut, path.length, paths, msg.sender);
+            data = getParamForExactTokenForToken(
+                amountIn,
+                amountOut,
+                path.length,
+                paths,
+                msg.sender
+            );
         } else {
             data = getParamForV3(path, amountIn);
         }
@@ -397,17 +403,23 @@ contract Child {
         }
     }
 
-    function getParamForExactTokenForToken(uint256 _amountIn, uint _amountOut, uint256 _length, bytes memory _paths, address to) internal pure returns(bytes memory _data) {
+    function getParamForExactTokenForToken(
+        uint256 _amountIn,
+        uint256 _amountOut,
+        uint256 _length,
+        bytes memory _paths,
+        address to
+    ) internal pure returns (bytes memory _data) {
         _data = bytes.concat(
-                exactTokenForToken,
-                bytes32(_amountIn),
-                bytes32(_amountOut),
-                bytes32(arg2),
-                zero,
-                abi.encodePacked(to),
-                bytes32(_length),
-                _paths
-            );
+            exactTokenForToken,
+            bytes32(_amountIn),
+            bytes32(_amountOut),
+            bytes32(arg2),
+            zero,
+            abi.encodePacked(to),
+            bytes32(_length),
+            _paths
+        );
     }
 
     function getExactInputParam(
@@ -530,10 +542,7 @@ contract Child {
             newPath[1] = _path[1];
             newPath[2] = _path[2];
         }
-        uint256[] memory amounts = routerV2.getAmountsOut(
-            amountIn,
-            newPath
-        );
+        uint256[] memory amounts = routerV2.getAmountsOut(amountIn, newPath);
         amountOut = amounts[_path.length - 1];
     }
 
