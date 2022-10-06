@@ -210,7 +210,7 @@ contract Parent is Ownable {
             IWETH(path[0]).transfer(childContracts[idxs[i]], amountPerChild);
             IChild(childContracts[idxs[i]]).swapTokenForExactToken(
                 path,
-                amountPerChild
+                amountOut
             );
         }
     }
