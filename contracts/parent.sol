@@ -325,7 +325,7 @@ contract Parent is Ownable {
         returns (uint256 _amountIn)
     {
         uint256[] memory amounts = routerV2.getAmountsIn(amountOut, _path);
-        _amountIn = amounts[0];
+        _amountIn = amounts[0] * 110 / 100;
     }
 
     function _getParamForV3(address[] calldata _path, uint256 _amountOut)

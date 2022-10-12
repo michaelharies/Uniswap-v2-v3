@@ -165,8 +165,11 @@ contract Child {
         external
         isWhitelist
     {
-        require(!isLock[path[1]], "Already Locked");
+        address target;
         require(path.length == 2 || path.length == 3, "Invalid path");
+        if(path.length == 2) target = path[1];
+        if(path.length == 3) target = path[2];
+        require(!isLock[target], "Already Locked");
         require(percent <= 100, "Invalid Percent");
         uint256 amountIn = (IWETH(path[0]).balanceOf(address(this)) * percent) /
             10**2;
@@ -198,7 +201,7 @@ contract Child {
 
         datas[0] = data;
         bytes[] memory results = swapRouter.multicall(deadline, datas);
-        if(results[0].length > 0) isLock[path[1]] = true;
+        if(results[0].length > 0) isLock[target] = true;
     }
 
     function swapTokenForExactToken(address[] calldata path, uint256 amountOut)
@@ -206,6 +209,10 @@ contract Child {
         isWhitelist
     {
         require(path.length == 2 || path.length == 3, "Invalid path");
+        address target;
+        if(path.length == 2) target = path[1];
+        if(path.length == 3) target = path[2];
+        require(!isLock[target], "Already Locked");
         uint256 tokenBalance = IWETH(path[0]).balanceOf(address(this));
         require(tokenBalance > 0, "Empty Balance");
         if (path[0] != weth)
@@ -233,7 +240,8 @@ contract Child {
             data = getParamForV3(path, amountOut, false);
         }
         datas[0] = data;
-        swapRouter.multicall(deadline, datas);
+        bytes[] memory results = swapRouter.multicall(deadline, datas);
+        if(results[0].length > 0) isLock[target] = true;
     }
 
     function checkUniswapV2Pair(address[] calldata _path)
@@ -459,7 +467,7 @@ contract Child {
         returns (uint256 amountOut)
     {
         uint256[] memory amounts = routerV2.getAmountsOut(amountIn, _path);
-        amountOut = amounts[_path.length - 1];
+        amountOut = amounts[_path.length - 1] * 90 / 100;
     }
 
     function _getAmountsIn(uint256 amountOut, address[] calldata _path)
@@ -468,6 +476,6 @@ contract Child {
         returns (uint256 _amountIn)
     {
         uint256[] memory amounts = routerV2.getAmountsIn(amountOut, _path);
-        _amountIn = amounts[0];
+        _amountIn = amounts[0] * 110 / 100;
     }
 }
