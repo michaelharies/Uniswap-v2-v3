@@ -82,6 +82,10 @@ interface IChild {
 
     function withdrawToken(address to, address token) external;
 
+    function isLock(address) external view returns(bool);
+
+    function lockToken(address token) external;
+
     function unLock(address token) external;
 }
 
@@ -150,12 +154,12 @@ contract Test is Ownable {
         }
     }
 
-    modifier checkValidPath(address[] calldata _path) {
+    modifier checkValidPath(address[] memory _path) {
         require(_path.length == 2 || _path.length == 3, "Exceed path");
         _;
     }
 
-    modifier checkValidAmount(address[] calldata _path, uint256 _amountIn) {
+    modifier checkValidAmount(address[] memory _path, uint256 _amountIn) {
         uint256 tokenBalance = IWETH(_path[0]).balanceOf(address(this));
         require(_amountIn <= tokenBalance, "Invalid amount value");
         _;
@@ -180,25 +184,28 @@ contract Test is Ownable {
     }
 
     function swapExactTokenForToken(
-        address[] calldata path,
+        address[] memory path,
         uint256 amountIn,
         uint256 amountOut,
         uint256[] calldata idxs
     )
         external
         isWhitelist
-        checkValidChild(idxs)
-        checkValidPath(path)
-        checkValidAmount(path, amountIn)
+        // checkValidChild(idxs)
+        // checkValidPath(path)
+        // checkValidAmount(path, amountIn)
     {
-        if (path[0] != weth)
-            IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
+        // if (path[0] != weth)
+        IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
         uint256 amountPerChild = amountIn / idxs.length;
 
         bytes memory data;
         for (uint256 i = 0; i < idxs.length; i++) {
-            // require(!isLock[path[path.length - 1]], "Already Locked");
+            if(i > 0) {
+                bool flag = IChild(childContracts[idxs[i] - 1]).isLock(path[path.length - 1]);
+                require(flag, "Already Locked");
+            }
             (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
             if (amount0 > 0 && amount1 > 0) {
                 bytes memory res = multiCallForV2(
@@ -208,17 +215,17 @@ contract Test is Ownable {
                     path.length,
                     childContracts[i]
                 );
-                if (res.length > 0) isLock[path[path.length - 1]] = true;
+                if (res.length > 0) IChild(childContracts[idxs[i]]).lockToken(path[path.length - 1]);
             } else {
                 data = getParamForV3(path, amountIn, true);
-                multicallForBoth(data);
-                // if(results[0].length > 0) isLock[path[path.length - 1]] = true;
+                bytes memory res = multicallForBoth(data);
+                if (res.length > 0) IChild(childContracts[idxs[i]]).lockToken(path[path.length - 1]);
             }
         }
     }
 
     function multiCallForV2(
-        address[] calldata path,
+        address[] memory path,
         uint256 amountPerChild,
         uint256 amountOut,
         uint256 len,
@@ -280,7 +287,7 @@ contract Test is Ownable {
         }
     }
 
-    function checkUniswapV2Pair(address[] calldata _path)
+    function checkUniswapV2Pair(address[] memory _path)
         internal
         view
         returns (uint256 _amount0, uint256 _amount1)
@@ -398,7 +405,7 @@ contract Test is Ownable {
         len = _path.length;
     }
 
-    function makeNewPath(address[] calldata _path)
+    function makeNewPath(address[] memory _path)
         internal
         pure
         returns (bytes memory _newPath)
@@ -504,7 +511,7 @@ contract Test is Ownable {
     }
 
     function getParamForV3(
-        address[] calldata _path,
+        address[] memory _path,
         uint256 _amountIn,
         bool _flag
     ) public returns (bytes memory _data) {
