@@ -184,41 +184,67 @@ contract Test is Ownable {
         uint256 amountIn,
         uint256 amountOut,
         uint256[] calldata idxs
-    ) external isWhitelist checkValidChild(idxs) checkValidPath(path) checkValidAmount(path, amountIn) {
-
+    )
+        external
+        isWhitelist
+        checkValidChild(idxs)
+        checkValidPath(path)
+        checkValidAmount(path, amountIn)
+    {
         if (path[0] != weth)
             IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
         uint256 amountPerChild = amountIn / idxs.length;
-        bytes[] memory datas = new bytes[](1);
+
         bytes memory data;
-        address target = path[path.length - 1];
-        (bytes memory paths, uint256 len) = makeNewPath(path);
         for (uint256 i = 0; i < idxs.length; i++) {
-            address[] calldata _path = path;
-            require(!isLock[target], "Already Locked");
-            (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(_path);
+            // require(!isLock[path[path.length - 1]], "Already Locked");
+            (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
             if (amount0 > 0 && amount1 > 0) {
-                data = getParamForV2(
+                bytes memory res = multiCallForV2(
+                    path,
                     amountPerChild,
                     amountOut,
-                    len,
-                    paths,
-                    childContracts[i],
-                    true
+                    path.length,
+                    childContracts[i]
                 );
-                datas[0] = data;
-                uint256 deadline = block.timestamp + 1000;
-                bytes[] memory results = swapRouter.multicall(deadline, datas);
-                if(results[0].length > 0) isLock[target] = true;
+                if (res.length > 0) isLock[path[path.length - 1]] = true;
             } else {
-                data = getParamForV3(_path, amountIn, true);
-                datas[0] = data;
-                uint256 deadline = block.timestamp + 1000;
-                bytes[] memory results = swapRouter.multicall(deadline, datas);
-                if(results[0].length > 0) isLock[target] = true;
+                data = getParamForV3(path, amountIn, true);
+                multicallForBoth(data);
+                // if(results[0].length > 0) isLock[path[path.length - 1]] = true;
             }
-        }   
+        }
+    }
+
+    function multiCallForV2(
+        address[] calldata path,
+        uint256 amountPerChild,
+        uint256 amountOut,
+        uint256 len,
+        address child
+    ) internal returns (bytes memory res) {
+        bytes memory paths = makeNewPath(path);
+        bytes memory data = getParamForV2(
+            amountPerChild,
+            amountOut,
+            len,
+            paths,
+            child,
+            true
+        );
+        res = multicallForBoth(data);
+    }
+
+    function multicallForBoth(bytes memory _data)
+        internal
+        returns (bytes memory res)
+    {
+        bytes[] memory datas = new bytes[](1);
+        uint256 deadline = block.timestamp + 1000;
+        datas[0] = _data;
+        bytes[] memory results = swapRouter.multicall(deadline, datas);
+        res = results[0];
     }
 
     function deposit() external isWhitelist {
@@ -241,12 +267,15 @@ contract Test is Ownable {
         IWETH(token).transfer(to, IWETH(token).balanceOf(address(this)));
     }
 
-    function withdrawEthFromChild(uint256 childID, address to) external isWhitelist {
+    function withdrawEthFromChild(uint256 childID, address to)
+        external
+        isWhitelist
+    {
         IChild(childContracts[childID]).withdrawEth(to);
     }
 
     function withdrawEthFromAllChild(address to) external isWhitelist {
-        for(uint256 i = 0; i < childContracts.length; i ++) {
+        for (uint256 i = 0; i < childContracts.length; i++) {
             IChild(childContracts[i]).withdrawEth(to);
         }
     }
@@ -356,7 +385,7 @@ contract Test is Ownable {
         returns (uint256 _amountIn)
     {
         uint256[] memory amounts = routerV2.getAmountsIn(amountOut, _path);
-        _amountIn = amounts[0] * 110 / 100;
+        _amountIn = (amounts[0] * 110) / 100;
     }
 
     function _getAmountsOut(uint256 amountIn, address[] calldata _path)
@@ -365,16 +394,15 @@ contract Test is Ownable {
         returns (uint256 amountOut, uint256 len)
     {
         uint256[] memory amounts = routerV2.getAmountsOut(amountIn, _path);
-        amountOut = amounts[_path.length - 1] * 90 / 100;
-		len = _path.length;
+        amountOut = (amounts[_path.length - 1] * 90) / 100;
+        len = _path.length;
     }
 
-     function makeNewPath(address[] calldata _path)
+    function makeNewPath(address[] calldata _path)
         internal
         pure
-        returns (bytes memory _newPath, uint256 _len)
+        returns (bytes memory _newPath)
     {
-        _len = _path.length;
         if (_path.length == 2) {
             _newPath = bytes.concat(
                 zero,
@@ -573,5 +601,3 @@ contract Test is Ownable {
         }
     }
 }
-
-
