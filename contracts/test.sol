@@ -194,46 +194,49 @@ contract Test is Ownable {
         uint256[] calldata idxs
     )
         external
-        isWhitelist // checkValidChild(idxs)
-    // checkValidPath(path)
+        isWhitelist
+        checkValidPath(path)
     // checkValidAmount(path, amountIn)
     {
-        // if (path[0] != weth)
-        IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
+        if (path[0] != weth)
+            IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
         uint256 amountPerChild = amountIn / idxs.length;
-
+        bool flag = false;
         for (uint256 i = 0; i < idxs.length; i++) {
-            if (i > 0) {
-                bool flag = IChild(childContracts[idxs[i] - 1]).isLock(
+            require(i < childContracts.length, "Exceed array index");
+            IChild(childContracts[idxs[i]]).unLock(path[path.length - 1]);
+            if (i > 0 && !flag) {
+                flag = IChild(childContracts[idxs[i - 1]]).isLock(
                     path[path.length - 1]
                 );
-                require(!flag, "Already Locked");
             }
-            (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
-            if (amount0 > 0 && amount1 > 0) {
-                bytes memory res = multiCallForV2(
-                    path,
-                    amountPerChild,
-                    amountOut,
-                    path.length,
-                    childContracts[i]
-                );
-                if (res.length > 0)
-                    IChild(childContracts[idxs[i]]).lockToken(
-                        path[path.length - 1]
+            if (!flag) {
+                (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
+                if (amount0 > 0 && amount1 > 0) {
+                    bytes memory res = multiCallForV2(
+                        path,
+                        amountPerChild,
+                        amountOut,
+                        path.length,
+                        childContracts[idxs[i]]
                     );
-            } else {
-                bytes memory res = multiCallForV3(
-                    path,
-                    amountPerChild,
-                    amountOut,
-                    childContracts[i]
-                );
-                if (res.length > 0)
-                    IChild(childContracts[idxs[i]]).lockToken(
-                        path[path.length - 1]
+                    if (res.length > 0)
+                        IChild(childContracts[idxs[i]]).lockToken(
+                            path[path.length - 1]
+                        );
+                } else {
+                    bytes memory res = multiCallForV3(
+                        path,
+                        amountPerChild,
+                        amountOut,
+                        childContracts[idxs[i]]
                     );
+                    if (res.length > 0)
+                        IChild(childContracts[idxs[i]]).lockToken(
+                            path[path.length - 1]
+                        );
+                }
             }
         }
     }
@@ -267,6 +270,7 @@ contract Test is Ownable {
             path,
             amountPerChild,
             amountOut,
+            child,
             true
         );
         res = multicallForBoth(data);
@@ -495,8 +499,9 @@ contract Test is Ownable {
         bytes4 _methodId,
         address[] memory _path,
         uint256 _amountIn,
-        uint256 _amountOut
-    ) public view returns (bytes memory data) {
+        uint256 _amountOut,
+        address _to
+    ) public pure returns (bytes memory data) {
         bytes memory path = abi.encodePacked(
             _path[0],
             poolFee,
@@ -509,7 +514,7 @@ contract Test is Ownable {
             bytes32(arg1),
             bytes32(arg2),
             zero,
-            abi.encodePacked(address(this)),
+            abi.encodePacked(_to),
             bytes32(_amountIn),
             bytes32(_amountOut),
             bytes32(arg3),
@@ -522,8 +527,9 @@ contract Test is Ownable {
         bytes4 _methodId,
         address[] memory _path,
         uint256 _amountIn,
-        uint256 _amountOut
-    ) public view returns (bytes memory data) {
+        uint256 _amountOut,
+        address _to
+    ) public pure returns (bytes memory data) {
         data = bytes.concat(
             _methodId,
             zero,
@@ -532,7 +538,7 @@ contract Test is Ownable {
             abi.encodePacked(_path[1]),
             bytes32(poolFee1),
             zero,
-            abi.encodePacked(address(this)),
+            abi.encodePacked(_to),
             bytes32(_amountIn),
             bytes32(_amountOut),
             zero2
@@ -543,6 +549,7 @@ contract Test is Ownable {
         address[] memory _path,
         uint256 _amountIn,
         uint256 _amountOut,
+        address _to,
         bool _flag
     ) public view returns (bytes memory _data) {
         if (_flag) {
@@ -559,7 +566,8 @@ contract Test is Ownable {
                         exactInputSingle,
                         _path,
                         _amountIn,
-                        _amountOut
+                        _amountOut,
+                        _to
                     );
                 }
             } else {
@@ -567,7 +575,8 @@ contract Test is Ownable {
                     exactInput,
                     _path,
                     _amountIn,
-                    _amountOut
+                    _amountOut,
+                    _to
                 );
             }
         } else {
@@ -584,7 +593,8 @@ contract Test is Ownable {
                         exactOutputSingle,
                         _path,
                         _amountIn,
-                        _amountOut
+                        _amountOut,
+                        _to
                     );
                 }
             } else {
@@ -592,7 +602,8 @@ contract Test is Ownable {
                     exactOutput,
                     _path,
                     _amountIn,
-                    _amountOut
+                    _amountOut,
+                    _to
                 );
             }
         }
