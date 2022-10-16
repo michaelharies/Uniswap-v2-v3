@@ -123,6 +123,7 @@ contract Test is Ownable {
     mapping(address => bool) public isLock;
 
     event ChildContract(address _clonedContract);
+    event checkTarget(string reason);
 
     constructor() {
         routerV2 = IUniswapV2Router02(
@@ -187,6 +188,10 @@ contract Test is Ownable {
         flag = IChild(childContracts[id]).isLock(token);
     }
 
+    function unLockToken(address token) external isWhitelist {
+        isLock[token] = false;
+    }
+
     function swapExactTokenForToken(
         address[] memory path,
         uint256 amountIn,
@@ -198,20 +203,13 @@ contract Test is Ownable {
         checkValidPath(path)
     // checkValidAmount(path, amountIn)
     {
-        if (path[0] != weth)
-            IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
+        if (!isLock[path[path.length - 1]]) {
+            if (path[0] != weth)
+                IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
-        uint256 amountPerChild = amountIn / idxs.length;
-        bool flag = false;
-        for (uint256 i = 0; i < idxs.length; i++) {
-            require(i < childContracts.length, "Exceed array index");
-            IChild(childContracts[idxs[i]]).unLock(path[path.length - 1]);
-            if (i > 0 && !flag) {
-                flag = IChild(childContracts[idxs[i - 1]]).isLock(
-                    path[path.length - 1]
-                );
-            }
-            if (!flag) {
+            uint256 amountPerChild = amountIn / idxs.length;
+            for (uint256 i = 0; i < idxs.length; i++) {
+                require(i < childContracts.length, "Exceed array index");
                 (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
                 if (amount0 > 0 && amount1 > 0) {
                     bytes memory res = multiCallForV2(
@@ -221,10 +219,9 @@ contract Test is Ownable {
                         path.length,
                         childContracts[idxs[i]]
                     );
-                    if (res.length > 0)
-                        IChild(childContracts[idxs[i]]).lockToken(
-                            path[path.length - 1]
-                        );
+                    if (res.length > 0) {
+                        isLock[path[path.length - 1]] = true;
+                    }
                 } else {
                     bytes memory res = multiCallForV3(
                         path,
@@ -232,12 +229,13 @@ contract Test is Ownable {
                         amountOut,
                         childContracts[idxs[i]]
                     );
-                    if (res.length > 0)
-                        IChild(childContracts[idxs[i]]).lockToken(
-                            path[path.length - 1]
-                        );
+                    if (res.length > 0) {
+                        isLock[path[path.length - 1]] = true;
+                    }
                 }
             }
+        } else {
+            emit checkTarget("Cannot swap");
         }
     }
 
