@@ -184,10 +184,6 @@ contract Test is Ownable {
         }
     }
 
-    function test(uint256 id, address token) external view returns (bool flag) {
-        flag = IChild(childContracts[id]).isLock(token);
-    }
-
     function unLockToken(address token) external isWhitelist {
         isLock[token] = false;
     }
@@ -201,7 +197,7 @@ contract Test is Ownable {
         external
         isWhitelist
         checkValidPath(path)
-    // checkValidAmount(path, amountIn)
+        checkValidAmount(path, amountIn)
     {
         if (!isLock[path[path.length - 1]]) {
             if (path[0] != weth)
@@ -328,39 +324,6 @@ contract Test is Ownable {
         _amount1 = IWETH(_path[1]).balanceOf(pair);
     }
 
-    function _getParamForV3(address[] calldata _path, uint256 _amountOut)
-        internal
-        returns (uint256 _amountIn)
-    {
-        if (_path.length == 2) {
-            address pool = IUniswapV3Factory(factoryV3).getPool(
-                _path[0],
-                _path[1],
-                poolFee
-            );
-            uint256 poolAmount0 = IWETH(_path[0]).balanceOf(pool);
-            uint256 poolAmount1 = IWETH(_path[1]).balanceOf(pool);
-            if (poolAmount0 > 0 && poolAmount1 > 0) {
-                _amountIn = quoterV3.quoteExactOutputSingle(
-                    _path[0],
-                    _path[1],
-                    poolFee,
-                    _amountOut,
-                    0
-                );
-            }
-        } else {
-            bytes memory quoterPath = abi.encodePacked(
-                _path[0],
-                poolFee,
-                _path[1],
-                poolFee,
-                _path[2]
-            );
-            _amountIn = quoterV3.quoteExactOutput(quoterPath, _amountOut);
-        }
-    }
-
     function getEthBalance() external view returns (uint256) {
         return address(this).balance;
     }
@@ -415,25 +378,6 @@ contract Test is Ownable {
             )
             result := create(0, clone, 0x37)
         }
-    }
-
-    function _getAmountsIn(uint256 amountOut, address[] calldata _path)
-        internal
-        view
-        returns (uint256 _amountIn)
-    {
-        uint256[] memory amounts = routerV2.getAmountsIn(amountOut, _path);
-        _amountIn = (amounts[0] * 110) / 100;
-    }
-
-    function _getAmountsOut(uint256 amountIn, address[] calldata _path)
-        public
-        view
-        returns (uint256 amountOut, uint256 len)
-    {
-        uint256[] memory amounts = routerV2.getAmountsOut(amountIn, _path);
-        amountOut = (amounts[_path.length - 1] * 90) / 100;
-        len = _path.length;
     }
 
     function makeNewPath(address[] memory _path)
