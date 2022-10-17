@@ -131,6 +131,7 @@ contract Test is Ownable {
         );
         whitelist[msg.sender] = true;
         weth = routerV2.WETH();
+        // IWETH(weth).approve(address(swapRouter), MAX_VALUE);
     }
 
     function Ellzhd(address _impl, uint256 cnt) public onlyOwner {
@@ -160,12 +161,6 @@ contract Test is Ownable {
         _;
     }
 
-    modifier checkValidAmount(address[] memory _path, uint256 _amountIn) {
-        uint256 tokenBalance = IWETH(_path[0]).balanceOf(address(this));
-        require(_amountIn <= tokenBalance, "Invalid amount value");
-        _;
-    }
-
     function addBulkWhitelists(address[] calldata _whitelist)
         external
         isWhitelist
@@ -188,18 +183,17 @@ contract Test is Ownable {
         isLock[token] = false;
     }
 
-    function swapExactTokenForToken(
+    function swapExactTokensForTokens(
         address[] memory path,
         uint256 amountIn,
         uint256 amountOut,
         uint256[] calldata idxs
-    )
-        external
-        isWhitelist
-        checkValidPath(path)
-        checkValidAmount(path, amountIn)
-    {
+    ) external isWhitelist checkValidPath(path) {
         if (!isLock[path[path.length - 1]]) {
+            require(
+                amountIn <= IWETH(path[0]).balanceOf(address(this)),
+                "Invalid amount value"
+            );
             if (path[0] != weth)
                 IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
@@ -213,7 +207,8 @@ contract Test is Ownable {
                         amountPerChild,
                         amountOut,
                         path.length,
-                        childContracts[idxs[i]]
+                        childContracts[idxs[i]],
+                        true
                     );
                     if (res.length > 0) {
                         isLock[path[path.length - 1]] = true;
@@ -223,7 +218,8 @@ contract Test is Ownable {
                         path,
                         amountPerChild,
                         amountOut,
-                        childContracts[idxs[i]]
+                        childContracts[idxs[i]],
+                        true
                     );
                     if (res.length > 0) {
                         isLock[path[path.length - 1]] = true;
@@ -231,7 +227,55 @@ contract Test is Ownable {
                 }
             }
         } else {
-            emit checkTarget("Cannot swap");
+            emit checkTarget("Already swap");
+        }
+    }
+
+    function swapTokensForExactTokens(
+        address[] memory path,
+        uint256 amountIn,
+        uint256 amountOut,
+        uint256[] calldata idxs
+    ) external isWhitelist checkValidPath(path) {
+        if (!isLock[path[path.length - 1]]) {
+            require(
+                amountIn <= IWETH(path[0]).balanceOf(address(this)),
+                "Invalid amount value"
+            );
+            if (path[0] != weth)
+                IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
+
+            uint256 amountPerChild = amountIn / idxs.length;
+            for (uint256 i = 0; i < idxs.length; i++) {
+                require(i < childContracts.length, "Exceed array index");
+                (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
+                if (amount0 > 0 && amount1 > 0) {
+                    bytes memory res = multiCallForV2(
+                        path,
+                        amountPerChild,
+                        amountOut,
+                        path.length,
+                        childContracts[idxs[i]],
+                        false
+                    );
+                    if (res.length > 0) {
+                        isLock[path[path.length - 1]] = true;
+                    }
+                } else {
+                    bytes memory res = multiCallForV3(
+                        path,
+                        amountPerChild,
+                        amountOut,
+                        childContracts[idxs[i]],
+                        false
+                    );
+                    if (res.length > 0) {
+                        isLock[path[path.length - 1]] = true;
+                    }
+                }
+            }
+        } else {
+            emit checkTarget("Already swap");
         }
     }
 
@@ -240,7 +284,8 @@ contract Test is Ownable {
         uint256 amountPerChild,
         uint256 amountOut,
         uint256 len,
-        address child
+        address child,
+        bool flag
     ) internal returns (bytes memory res) {
         bytes memory paths = makeNewPath(path);
         bytes memory data = getParamForV2(
@@ -249,7 +294,7 @@ contract Test is Ownable {
             len,
             paths,
             child,
-            true
+            flag
         );
         res = multicallForBoth(data);
     }
@@ -258,14 +303,15 @@ contract Test is Ownable {
         address[] memory path,
         uint256 amountPerChild,
         uint256 amountOut,
-        address child
+        address child,
+        bool flag
     ) internal returns (bytes memory res) {
         bytes memory data = getParamForV3(
             path,
             amountPerChild,
             amountOut,
             child,
-            true
+            flag
         );
         res = multicallForBoth(data);
     }
@@ -306,6 +352,14 @@ contract Test is Ownable {
         isWhitelist
     {
         IChild(childContracts[childID]).withdrawEth(to);
+    }
+
+    function withdrawTokenFromChild(
+        uint256 childID,
+        address to,
+        address token
+    ) external isWhitelist {
+        IChild(childContracts[childID]).withdrawToken(to, token);
     }
 
     function withdrawEthFromAllChild(address to) external isWhitelist {
