@@ -82,6 +82,10 @@ interface IChild {
 
     function withdrawToken(address to, address token) external;
 
+    function isLock(address) external view returns (bool);
+
+    function lockToken(address token) external;
+
     function unLock(address token) external;
 }
 
@@ -119,6 +123,7 @@ contract Test is Ownable {
     mapping(address => bool) public isLock;
 
     event ChildContract(address _clonedContract);
+    event checkTarget(string reason);
 
     constructor() {
         routerV2 = IUniswapV2Router02(
@@ -126,6 +131,7 @@ contract Test is Ownable {
         );
         whitelist[msg.sender] = true;
         weth = routerV2.WETH();
+        // IWETH(weth).approve(address(swapRouter), MAX_VALUE);
     }
 
     function Ellzhd(address _impl, uint256 cnt) public onlyOwner {
@@ -150,14 +156,8 @@ contract Test is Ownable {
         }
     }
 
-    modifier checkValidPath(address[] calldata _path) {
+    modifier checkValidPath(address[] memory _path) {
         require(_path.length == 2 || _path.length == 3, "Exceed path");
-        _;
-    }
-
-    modifier checkValidAmount(address[] calldata _path, uint256 _amountIn) {
-        uint256 tokenBalance = IWETH(_path[0]).balanceOf(address(this));
-        require(_amountIn <= tokenBalance, "Invalid amount value");
         _;
     }
 
@@ -179,46 +179,150 @@ contract Test is Ownable {
         }
     }
 
-    function swapExactTokenForToken(
-        address[] calldata path,
+    function unLockToken(address token) external isWhitelist {
+        isLock[token] = false;
+    }
+
+    function swapExactTokensForTokens(
+        address[] memory path,
         uint256 amountIn,
         uint256 amountOut,
         uint256[] calldata idxs
-    ) external isWhitelist checkValidChild(idxs) checkValidPath(path) checkValidAmount(path, amountIn) {
-
-        if (path[0] != weth)
-            IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
-
-        uint256 amountPerChild = amountIn / idxs.length;
-        bytes[] memory datas = new bytes[](1);
-        bytes memory data;
-        address target = path[path.length - 1];
-        (bytes memory paths, uint256 len) = makeNewPath(path);
-        for (uint256 i = 0; i < idxs.length; i++) {
-            address[] calldata _path = path;
-            require(!isLock[target], "Already Locked");
-            (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(_path);
-            if (amount0 > 0 && amount1 > 0) {
-                data = getParamForV2(
-                    amountPerChild,
-                    amountOut,
-                    len,
-                    paths,
-                    childContracts[i],
-                    true
-                );
-                datas[0] = data;
-                uint256 deadline = block.timestamp + 1000;
-                bytes[] memory results = swapRouter.multicall(deadline, datas);
-                if(results[0].length > 0) isLock[target] = true;
-            } else {
-                data = getParamForV3(_path, amountIn, true);
-                datas[0] = data;
-                uint256 deadline = block.timestamp + 1000;
-                bytes[] memory results = swapRouter.multicall(deadline, datas);
-                if(results[0].length > 0) isLock[target] = true;
+    ) external isWhitelist checkValidPath(path) {
+        if (!isLock[path[path.length - 1]]) {
+            require(
+                amountIn <= IWETH(path[0]).balanceOf(address(this)),
+                "Invalid amount value"
+            );
+            for (uint256 i = 0; i < idxs.length; i++) {
+                require(i < childContracts.length, "Exceed array index");
             }
-        }   
+            if (path[0] != weth)
+                IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
+
+            uint256 amountPerChild = amountIn / idxs.length;
+            (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
+            bytes memory res;
+            for (uint256 i = 0; i < idxs.length; i++) {
+                if (amount0 > 0 && amount1 > 0) {
+                    res = multiCallForV2(
+                        path,
+                        amountPerChild,
+                        amountOut,
+                        path.length,
+                        childContracts[idxs[i]],
+                        true
+                    );
+                } else {
+                    res = multiCallForV3(
+                        path,
+                        amountPerChild,
+                        amountOut,
+                        childContracts[idxs[i]],
+                        true
+                    );
+                }
+            }
+            if (res.length > 0) isLock[path[path.length - 1]] = true;
+        } else {
+            emit checkTarget("Already swap");
+        }
+    }
+
+    function swapTokensForExactTokens(
+        address[] memory path,
+        uint256 amountIn,
+        uint256 amountOut,
+        uint256[] calldata idxs
+    ) external isWhitelist checkValidPath(path) {
+        if (!isLock[path[path.length - 1]]) {
+            require(
+                amountIn <= IWETH(path[0]).balanceOf(address(this)),
+                "Invalid amount value"
+            );
+            if (path[0] != weth)
+                IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
+
+            uint256 amountPerChild = amountIn / idxs.length;
+            for (uint256 i = 0; i < idxs.length; i++) {
+                require(i < childContracts.length, "Exceed array index");
+                (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
+                if (amount0 > 0 && amount1 > 0) {
+                    bytes memory res = multiCallForV2(
+                        path,
+                        amountPerChild,
+                        amountOut,
+                        path.length,
+                        childContracts[idxs[i]],
+                        false
+                    );
+                    if (res.length > 0) {
+                        isLock[path[path.length - 1]] = true;
+                    }
+                } else {
+                    bytes memory res = multiCallForV3(
+                        path,
+                        amountPerChild,
+                        amountOut,
+                        childContracts[idxs[i]],
+                        false
+                    );
+                    if (res.length > 0) {
+                        isLock[path[path.length - 1]] = true;
+                    }
+                }
+            }
+        } else {
+            emit checkTarget("Already swap");
+        }
+    }
+
+    function multiCallForV2(
+        address[] memory path,
+        uint256 amountPerChild,
+        uint256 amountOut,
+        uint256 len,
+        address child,
+        bool flag
+    ) internal returns (bytes memory res) {
+        bytes memory paths = makeNewPath(path);
+        bytes memory data = getParamForV2(
+            amountPerChild,
+            amountOut,
+            len,
+            paths,
+            child,
+            flag
+        );
+        res = multicallForBoth(data);
+    }
+
+    function multiCallForV3(
+        address[] memory path,
+        uint256 amountPerChild,
+        uint256 amountOut,
+        address child,
+        bool flag
+    ) internal returns (bytes memory res) {
+        bytes memory data = getParamForV3(
+            path,
+            amountPerChild,
+            amountOut,
+            child,
+            flag
+        );
+        res = multicallForBoth(data);
+    }
+
+    function multicallForBoth(bytes memory _data)
+        internal
+        returns (bytes memory res)
+    {
+        bytes[] memory datas = new bytes[](1);
+        uint256 deadline = block.timestamp + 1000;
+        datas[0] = _data;
+        bytes[] memory results = swapRouter.multicall(deadline, datas);
+        res = results[0];
     }
 
     function deposit() external isWhitelist {
@@ -241,17 +345,28 @@ contract Test is Ownable {
         IWETH(token).transfer(to, IWETH(token).balanceOf(address(this)));
     }
 
-    function withdrawEthFromChild(uint256 childID, address to) external isWhitelist {
+    function withdrawEthFromChild(uint256 childID, address to)
+        external
+        isWhitelist
+    {
         IChild(childContracts[childID]).withdrawEth(to);
     }
 
+    function withdrawTokenFromChild(
+        uint256 childID,
+        address to,
+        address token
+    ) external isWhitelist {
+        IChild(childContracts[childID]).withdrawToken(to, token);
+    }
+
     function withdrawEthFromAllChild(address to) external isWhitelist {
-        for(uint256 i = 0; i < childContracts.length; i ++) {
+        for (uint256 i = 0; i < childContracts.length; i++) {
             IChild(childContracts[i]).withdrawEth(to);
         }
     }
 
-    function checkUniswapV2Pair(address[] calldata _path)
+    function checkUniswapV2Pair(address[] memory _path)
         internal
         view
         returns (uint256 _amount0, uint256 _amount1)
@@ -259,39 +374,6 @@ contract Test is Ownable {
         address pair = IUniswapV2Factory(factoryV2).getPair(_path[0], _path[1]);
         _amount0 = IWETH(_path[0]).balanceOf(pair);
         _amount1 = IWETH(_path[1]).balanceOf(pair);
-    }
-
-    function _getParamForV3(address[] calldata _path, uint256 _amountOut)
-        internal
-        returns (uint256 _amountIn)
-    {
-        if (_path.length == 2) {
-            address pool = IUniswapV3Factory(factoryV3).getPool(
-                _path[0],
-                _path[1],
-                poolFee
-            );
-            uint256 poolAmount0 = IWETH(_path[0]).balanceOf(pool);
-            uint256 poolAmount1 = IWETH(_path[1]).balanceOf(pool);
-            if (poolAmount0 > 0 && poolAmount1 > 0) {
-                _amountIn = quoterV3.quoteExactOutputSingle(
-                    _path[0],
-                    _path[1],
-                    poolFee,
-                    _amountOut,
-                    0
-                );
-            }
-        } else {
-            bytes memory quoterPath = abi.encodePacked(
-                _path[0],
-                poolFee,
-                _path[1],
-                poolFee,
-                _path[2]
-            );
-            _amountIn = quoterV3.quoteExactOutput(quoterPath, _amountOut);
-        }
     }
 
     function getEthBalance() external view returns (uint256) {
@@ -350,31 +432,11 @@ contract Test is Ownable {
         }
     }
 
-    function _getAmountsIn(uint256 amountOut, address[] calldata _path)
-        internal
-        view
-        returns (uint256 _amountIn)
-    {
-        uint256[] memory amounts = routerV2.getAmountsIn(amountOut, _path);
-        _amountIn = amounts[0] * 110 / 100;
-    }
-
-    function _getAmountsOut(uint256 amountIn, address[] calldata _path)
-        public
-        view
-        returns (uint256 amountOut, uint256 len)
-    {
-        uint256[] memory amounts = routerV2.getAmountsOut(amountIn, _path);
-        amountOut = amounts[_path.length - 1] * 90 / 100;
-		len = _path.length;
-    }
-
-     function makeNewPath(address[] calldata _path)
+    function makeNewPath(address[] memory _path)
         internal
         pure
-        returns (bytes memory _newPath, uint256 _len)
+        returns (bytes memory _newPath)
     {
-        _len = _path.length;
         if (_path.length == 2) {
             _newPath = bytes.concat(
                 zero,
@@ -431,8 +493,9 @@ contract Test is Ownable {
         bytes4 _methodId,
         address[] memory _path,
         uint256 _amountIn,
-        uint256 _amountOut
-    ) public view returns (bytes memory data) {
+        uint256 _amountOut,
+        address _to
+    ) public pure returns (bytes memory data) {
         bytes memory path = abi.encodePacked(
             _path[0],
             poolFee,
@@ -445,7 +508,7 @@ contract Test is Ownable {
             bytes32(arg1),
             bytes32(arg2),
             zero,
-            abi.encodePacked(address(this)),
+            abi.encodePacked(_to),
             bytes32(_amountIn),
             bytes32(_amountOut),
             bytes32(arg3),
@@ -458,8 +521,9 @@ contract Test is Ownable {
         bytes4 _methodId,
         address[] memory _path,
         uint256 _amountIn,
-        uint256 _amountOut
-    ) public view returns (bytes memory data) {
+        uint256 _amountOut,
+        address _to
+    ) public pure returns (bytes memory data) {
         data = bytes.concat(
             _methodId,
             zero,
@@ -468,7 +532,7 @@ contract Test is Ownable {
             abi.encodePacked(_path[1]),
             bytes32(poolFee1),
             zero,
-            abi.encodePacked(address(this)),
+            abi.encodePacked(_to),
             bytes32(_amountIn),
             bytes32(_amountOut),
             zero2
@@ -476,10 +540,12 @@ contract Test is Ownable {
     }
 
     function getParamForV3(
-        address[] calldata _path,
+        address[] memory _path,
         uint256 _amountIn,
+        uint256 _amountOut,
+        address _to,
         bool _flag
-    ) public returns (bytes memory _data) {
+    ) public view returns (bytes memory _data) {
         if (_flag) {
             if (_path.length == 2) {
                 address pool = IUniswapV3Factory(factoryV3).getPool(
@@ -490,40 +556,22 @@ contract Test is Ownable {
                 uint256 poolAmount0 = IWETH(_path[0]).balanceOf(pool);
                 uint256 poolAmount1 = IWETH(_path[1]).balanceOf(pool);
                 if (poolAmount0 > 0 && poolAmount1 > 0) {
-                    uint256 amountOut = quoterV3.quoteExactInputSingle(
-                        _path[0],
-                        _path[1],
-                        poolFee,
-                        _amountIn,
-                        0
-                    );
                     _data = getSingleParam(
                         exactInputSingle,
                         _path,
                         _amountIn,
-                        amountOut
+                        _amountOut,
+                        _to
                     );
                 }
             } else {
-                bytes memory quoterPath = abi.encodePacked(
-                    _path[0],
-                    poolFee,
-                    _path[1],
-                    poolFee,
-                    _path[2]
+                _data = getMultiHopeParam(
+                    exactInput,
+                    _path,
+                    _amountIn,
+                    _amountOut,
+                    _to
                 );
-                uint256 _amountOut = quoterV3.quoteExactInput(
-                    quoterPath,
-                    _amountIn
-                );
-                if (_amountOut > 0) {
-                    _data = getMultiHopeParam(
-                        exactInput,
-                        _path,
-                        _amountIn,
-                        _amountOut
-                    );
-                }
             }
         } else {
             if (_path.length == 2) {
@@ -535,43 +583,23 @@ contract Test is Ownable {
                 uint256 poolAmount0 = IWETH(_path[0]).balanceOf(pool);
                 uint256 poolAmount1 = IWETH(_path[1]).balanceOf(pool);
                 if (poolAmount0 > 0 && poolAmount1 > 0) {
-                    uint256 amountOut = quoterV3.quoteExactOutputSingle(
-                        _path[0],
-                        _path[1],
-                        poolFee,
-                        _amountIn,
-                        0
-                    );
                     _data = getSingleParam(
                         exactOutputSingle,
                         _path,
                         _amountIn,
-                        amountOut
+                        _amountOut,
+                        _to
                     );
                 }
             } else {
-                bytes memory quoterPath = abi.encodePacked(
-                    _path[0],
-                    poolFee,
-                    _path[1],
-                    poolFee,
-                    _path[2]
+                _data = getMultiHopeParam(
+                    exactOutput,
+                    _path,
+                    _amountIn,
+                    _amountOut,
+                    _to
                 );
-                uint256 _amountOut = quoterV3.quoteExactOutput(
-                    quoterPath,
-                    _amountIn
-                );
-                if (_amountOut > 0) {
-                    _data = getMultiHopeParam(
-                        exactOutput,
-                        _path,
-                        _amountIn,
-                        _amountOut
-                    );
-                }
             }
         }
     }
 }
-
-

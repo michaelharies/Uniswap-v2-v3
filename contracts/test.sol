@@ -194,15 +194,18 @@ contract Test is Ownable {
                 amountIn <= IWETH(path[0]).balanceOf(address(this)),
                 "Invalid amount value"
             );
+            for (uint256 i = 0; i < idxs.length; i++) {
+                require(i < childContracts.length, "Exceed array index");
+            }
             if (path[0] != weth)
                 IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
             uint256 amountPerChild = amountIn / idxs.length;
+            (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
+            bytes memory res;
             for (uint256 i = 0; i < idxs.length; i++) {
-                require(i < childContracts.length, "Exceed array index");
-                (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
                 if (amount0 > 0 && amount1 > 0) {
-                    bytes memory res = multiCallForV2(
+                    res = multiCallForV2(
                         path,
                         amountPerChild,
                         amountOut,
@@ -210,22 +213,17 @@ contract Test is Ownable {
                         childContracts[idxs[i]],
                         true
                     );
-                    if (res.length > 0) {
-                        isLock[path[path.length - 1]] = true;
-                    }
                 } else {
-                    bytes memory res = multiCallForV3(
+                    res = multiCallForV3(
                         path,
                         amountPerChild,
                         amountOut,
                         childContracts[idxs[i]],
                         true
                     );
-                    if (res.length > 0) {
-                        isLock[path[path.length - 1]] = true;
-                    }
                 }
             }
+            if (res.length > 0) isLock[path[path.length - 1]] = true;
         } else {
             emit checkTarget("Already swap");
         }
