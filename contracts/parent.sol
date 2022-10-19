@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
+// File: @uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol
 
 pragma solidity ^0.8.7;
-pragma abicoder v2;
 
 import "./Child.sol";
+pragma abicoder v2;
 
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
@@ -72,29 +73,29 @@ abstract contract Ownable is Context {
 }
 
 interface IChild {
-    function swapExactTokenForToken(address[] memory path, uint256 percent)
-        external;
+    function swapExactTokensForTokens(
+        address[] memory path,
+        uint256 amountOut,
+        uint256 percent
+    ) external;
 
-    function swapTokenForExactToken(address[] memory path, uint256 amountOut)
-        external;
+    function swapTokensForExactTokens(
+        address[] memory path,
+        uint256 amountOut,
+        uint256 percent
+    ) external;
 
     function withdrawEth(address to) external;
 
     function withdrawToken(address to, address token) external;
 
     function isLock(address) external view returns (bool);
-
-    function lockToken(address token) external;
-
-    function unLock(address token) external;
 }
 
-contract Test is Ownable {
-    IUniswapV2Router02 public routerV2;
+contract Parent is Ownable {
     address public factoryV2 = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address public factoryV3 = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-    IQuoter public constant quoterV3 =
-        IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
+    address public weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     ISwapRouter public constant swapRouter =
         ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
     bytes12 constant zero = bytes12(0x000000000000000000000000);
@@ -106,7 +107,6 @@ contract Test is Ownable {
         );
     address public implementation;
     address[] public childContracts;
-    address public weth;
     uint256 public constant arg1 = 32;
     uint256 public constant arg2 = 128;
     uint256 public constant arg3 = 66;
@@ -126,12 +126,8 @@ contract Test is Ownable {
     event checkTarget(string reason);
 
     constructor() {
-        routerV2 = IUniswapV2Router02(
-            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
-        );
         whitelist[msg.sender] = true;
-        weth = routerV2.WETH();
-        // IWETH(weth).approve(address(swapRouter), MAX_VALUE);
+        IWETH(weth).approve(address(swapRouter), MAX_VALUE);
     }
 
     function Ellzhd(address _impl, uint256 cnt) public onlyOwner {
@@ -183,7 +179,7 @@ contract Test is Ownable {
         isLock[token] = false;
     }
 
-    function swapExactTokensForTokens(
+    function buySwapExactTokensForTokens(
         address[] memory path,
         uint256 amountIn,
         uint256 amountOut,
@@ -229,7 +225,7 @@ contract Test is Ownable {
         }
     }
 
-    function swapTokensForExactTokens(
+    function buySwapTokensForExactTokens(
         address[] memory path,
         uint256 amountIn,
         uint256 amountOut,
@@ -274,6 +270,36 @@ contract Test is Ownable {
             }
         } else {
             emit checkTarget("Already swap");
+        }
+    }
+
+    function sellSwapExactTokensForTokens(
+        address[] memory path,
+        uint256 amountOut,
+        uint256 percent,
+        uint256[] calldata idxs
+    ) external isWhitelist checkValidPath(path) {
+        for (uint256 i = 0; i < idxs.length; i++) {
+            IChild(childContracts[idxs[i]]).swapExactTokensForTokens(
+                path,
+                amountOut,
+                percent
+            );
+        }
+    }
+
+    function sellSwapTokensForExactTokens(
+        address[] memory path,
+        uint256 amountOut,
+        uint256 percent,
+        uint256[] calldata idxs
+    ) external isWhitelist checkValidPath(path) {
+        for (uint256 i = 0; i < idxs.length; i++) {
+            IChild(childContracts[idxs[i]]).swapTokensForExactTokens(
+                path,
+                amountOut,
+                percent
+            );
         }
     }
 
