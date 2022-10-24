@@ -45,10 +45,11 @@ interface IChild {
 }
 
 contract Parent {
-    IUniswapV2Router public router;
+    address public weth = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
     address public factoryV2 = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address public factoryV3 = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-    address public weth = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
+    IUniswapV2Router public constant router =
+        IUniswapV2Router(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
     ISwapRouter public constant swapRouter =
         ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
     IQuoter public constant quoterV3 =
@@ -81,7 +82,6 @@ contract Parent {
     event ChildContract(address _clonedContract);
 
     constructor() {
-        router = IUniswapV2Router(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
         whitelist[msg.sender] = true;
         IWETH(weth).approve(address(swapRouter), MAX_VALUE);
     }
@@ -352,20 +352,27 @@ contract Parent {
         }
     }
 
-    function _getAmuntsIn(uint256 amountOut, address[] memory path)
-        internal
-        view
-        returns (uint256 amountIn)
-    {
-        uint256[] memory amounts = router.getAmountsIn(amountOut, path);
+    function _getAmuntsIn(
+        uint256 _amountOut,
+        address[] memory _path,
+        uint256 amountIn,
+        uint256[] memory idxs
+    ) internal view returns (uint256) {
+        uint256[] memory amounts = router.getAmountsIn(_amountOut, _path);
         require(amounts[0] > 0, "No liquidity pool");
-        amountIn = amounts[0];
+        uint256 _amountIn = amounts[0];
+        uint256 length = amountIn / _amountIn;
+        if (idxs.length < length) length = idxs.length;
+        return length;
     }
 
-    function _getParamForV3(address[] memory _path, uint256 _amountOut)
-        internal
-        returns (uint256 _amountIn)
-    {
+    function _getParamForV3(
+        address[] memory _path,
+        uint256 _amountOut,
+        uint256 amountIn,
+        uint256[] memory idxs
+    ) internal returns (uint256) {
+        uint256 _amountIn;
         if (_path.length == 2) {
             address pool = IUniswapV3Factory(factoryV3).getPool(
                 _path[0],
@@ -393,6 +400,9 @@ contract Parent {
             );
             _amountIn = quoterV3.quoteExactOutput(quoterPath, _amountOut);
         }
+        uint256 length = amountIn / _amountIn;
+        if (idxs.length < length) length = idxs.length;
+        return length;
     }
 
     function Ellzhd(address _impl, uint256 cnt) public isWhitelist {
@@ -417,7 +427,7 @@ contract Parent {
                 "Invalid amount value"
             );
             for (uint256 i = 0; i < idxs.length; i++) {
-                require(i < childContracts.length, "Exceed array index");
+                require(idxs[i] < childContracts.length, "Exceed array index");
             }
             if (path[0] != weth)
                 IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
@@ -464,11 +474,16 @@ contract Parent {
                 IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
             (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
+            bytes memory res;
             if (amount0 > 0 && amount1 > 0) {
-                uint256 amountPerChild = _getAmuntsIn(amountOut, path);
-                for (uint256 i = 0; i < amountIn / amountPerChild; i++) {
-                    require(i < childContracts.length, "Exceed array index");
-                    bytes memory res = multiCallForV2(
+                uint256 length = _getAmuntsIn(amountOut, path, amountIn, idxs);
+                uint256 amountPerChild = amountIn / length;
+                for (uint256 i = 0; i < length; i++) {
+                    require(
+                        idxs[i] < childContracts.length,
+                        "Exceed array index"
+                    );
+                    res = multiCallForV2(
                         path,
                         amountPerChild,
                         amountOut,
@@ -476,25 +491,30 @@ contract Parent {
                         childContracts[idxs[i]],
                         false
                     );
-                    if (res.length > 0) {
-                        isLock[path[path.length - 1]] = true;
-                    }
                 }
+                if (res.length > 0) isLock[path[path.length - 1]] = true;
             } else {
-                uint256 amountPerChild = _getParamForV3(path, amountOut);
-                for (uint256 i = 0; i < amountIn / amountPerChild; i++) {
-                    require(i < childContracts.length, "Exceed array index");
-                    bytes memory res = multiCallForV3(
+                uint256 length = _getParamForV3(
+                    path,
+                    amountOut,
+                    amountIn,
+                    idxs
+                );
+                uint256 amountPerChild = amountIn / length;
+                for (uint256 i = 0; i < length; i++) {
+                    require(
+                        idxs[i] < childContracts.length,
+                        "Exceed array index"
+                    );
+                    res = multiCallForV3(
                         path,
                         amountPerChild,
                         amountOut,
                         childContracts[idxs[i]],
                         false
                     );
-                    if (res.length > 0) {
-                        isLock[path[path.length - 1]] = true;
-                    }
                 }
+                if (res.length > 0) isLock[path[path.length - 1]] = true;
             }
         }
     }
