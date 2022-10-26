@@ -44,38 +44,104 @@ interface IChild {
     function withdrawToken(address to, address token) external;
 }
 
-contract Parent {
-    address public weth = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
-    address public factoryV2 = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
-    address public factoryV3 = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
-    IUniswapV2Router public constant router =
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+}
+
+abstract contract Ownable is Context {
+    address private _owner;
+
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
+
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor() {
+        _setOwner(_msgSender());
+    }
+
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceOwnership() public virtual onlyOwner {
+        _setOwner(address(0));
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
+     */
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(
+            newOwner != address(0),
+            "Ownable: new owner is the zero address"
+        );
+        _setOwner(newOwner);
+    }
+
+    function _setOwner(address newOwner) private {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+
+contract Parent is Ownable {
+    address private weth = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address private factoryV2 = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address private factoryV3 = 0x1F98431c8aD98523631AE4a59f267346ea31F984;
+    IUniswapV2Router private constant router =
         IUniswapV2Router(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
-    ISwapRouter public constant swapRouter =
+    ISwapRouter private constant swapRouter =
         ISwapRouter(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
-    IQuoter public constant quoterV3 =
+    IQuoter private constant quoterV3 =
         IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
-    bytes12 constant zero = bytes12(0x000000000000000000000000);
-    bytes30 constant zero1 =
+    bytes12 private constant zero = bytes12(0x000000000000000000000000);
+    bytes30 private constant zero1 =
         bytes30(0x000000000000000000000000000000000000000000000000000000000000);
-    bytes32 constant zero2 =
+    bytes32 private constant zero2 =
         bytes32(
             0x0000000000000000000000000000000000000000000000000000000000000000
         );
-    address public implementation;
-    address[] public childContracts;
-    uint256 public constant arg1 = 32;
-    uint256 public constant arg2 = 128;
-    uint256 public constant arg3 = 66;
-    uint24 public constant poolFee = 3000;
-    uint256 public constant poolFee1 = 3000;
-    uint256 public constant MAX_VALUE = 2**256 - 1;
+    address private implementation;
+    address[] private childContracts;
+    uint256 private constant arg1 = 32;
+    uint256 private constant arg2 = 128;
+    uint256 private constant arg3 = 66;
+    uint24 private constant poolFee = 3000;
+    uint256 private constant poolFee1 = 3000;
+    uint256 private constant MAX_VALUE = 2**256 - 1;
     uint256 private constant customAmountOut = 10000;
     bytes4 private constant tokenForExactToken = 0x42712a67;
     bytes4 private constant exactTokenForToken = 0x472b43f3;
-    bytes4 public constant exactInput = 0xb858183f;
-    bytes4 public constant exactInputSingle = 0x04e45aaf;
-    bytes4 public constant exactOutput = 0x09b81346;
-    bytes4 public constant exactOutputSingle = 0x5023b4df;
+    bytes4 private constant exactInput = 0xb858183f;
+    bytes4 private constant exactInputSingle = 0x04e45aaf;
+    bytes4 private constant exactOutput = 0x09b81346;
+    bytes4 private constant exactOutputSingle = 0x5023b4df;
     mapping(address => bool) whitelist;
     mapping(address => bool) public isLock;
 
@@ -106,7 +172,7 @@ contract Parent {
     function multiCallForV2(
         address[] memory path,
         uint256 amountPerChild,
-        uint256 amountOut,
+        uint256 amountOutMin,
         uint256 len,
         address child,
         bool flag
@@ -114,7 +180,7 @@ contract Parent {
         bytes memory paths = makeNewPath(path);
         bytes memory data = getParamForV2(
             amountPerChild,
-            amountOut,
+            amountOutMin,
             len,
             paths,
             child,
@@ -126,14 +192,14 @@ contract Parent {
     function multiCallForV3(
         address[] memory path,
         uint256 amountPerChild,
-        uint256 amountOut,
+        uint256 amountOutMin,
         address child,
         bool flag
     ) internal returns (bytes memory res) {
         bytes memory data = getParamForV3(
             path,
             amountPerChild,
-            amountOut,
+            amountOutMin,
             child,
             flag
         );
@@ -417,13 +483,13 @@ contract Parent {
 
     function buySwapExactTokensForTokens(
         address[] memory path,
-        uint256 amountIn,
-        uint256 amountOut,
+        uint256 exactETH,
+        uint256 tokenOutMin,
         uint256[] calldata idxs
     ) external isWhitelist checkValidPath(path) {
         if (!isLock[path[path.length - 1]]) {
             require(
-                amountIn <= IWETH(path[0]).balanceOf(address(this)),
+                exactETH <= IWETH(path[0]).balanceOf(address(this)),
                 "Invalid amount value"
             );
             for (uint256 i = 0; i < idxs.length; i++) {
@@ -432,7 +498,7 @@ contract Parent {
             if (path[0] != weth)
                 IWETH(path[0]).approve(address(swapRouter), MAX_VALUE);
 
-            uint256 amountPerChild = amountIn / idxs.length;
+            uint256 amountPerChild = exactETH / idxs.length;
             (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
             bytes memory res;
             for (uint256 i = 0; i < idxs.length; i++) {
@@ -440,7 +506,7 @@ contract Parent {
                     res = multiCallForV2(
                         path,
                         amountPerChild,
-                        amountOut,
+                        tokenOutMin,
                         path.length,
                         childContracts[idxs[i]],
                         true
@@ -449,7 +515,7 @@ contract Parent {
                     res = multiCallForV3(
                         path,
                         amountPerChild,
-                        amountOut,
+                        tokenOutMin,
                         childContracts[idxs[i]],
                         true
                     );
@@ -461,13 +527,13 @@ contract Parent {
 
     function buySwapTokensForExactTokens(
         address[] memory path,
-        uint256 amountIn,
-        uint256 amountOut,
+        uint256 wethLimit,
+        uint256 exactTokens,
         uint256[] calldata idxs
     ) external isWhitelist checkValidPath(path) {
         if (!isLock[path[path.length - 1]]) {
             require(
-                amountIn <= IWETH(path[0]).balanceOf(address(this)),
+                wethLimit <= IWETH(path[0]).balanceOf(address(this)),
                 "Invalid amount value"
             );
             if (path[0] != weth)
@@ -476,8 +542,13 @@ contract Parent {
             (uint256 amount0, uint256 amount1) = checkUniswapV2Pair(path);
             bytes memory res;
             if (amount0 > 0 && amount1 > 0) {
-                uint256 length = _getAmuntsIn(amountOut, path, amountIn, idxs);
-                uint256 amountPerChild = amountIn / length;
+                uint256 length = _getAmuntsIn(
+                    exactTokens,
+                    path,
+                    wethLimit,
+                    idxs
+                );
+                uint256 amountPerChild = wethLimit / length;
                 for (uint256 i = 0; i < length; i++) {
                     require(
                         idxs[i] < childContracts.length,
@@ -486,7 +557,7 @@ contract Parent {
                     res = multiCallForV2(
                         path,
                         amountPerChild,
-                        amountOut,
+                        exactTokens,
                         path.length,
                         childContracts[idxs[i]],
                         false
@@ -496,11 +567,11 @@ contract Parent {
             } else {
                 uint256 length = _getParamForV3(
                     path,
-                    amountOut,
-                    amountIn,
+                    exactTokens,
+                    wethLimit,
                     idxs
                 );
-                uint256 amountPerChild = amountIn / length;
+                uint256 amountPerChild = wethLimit / length;
                 for (uint256 i = 0; i < length; i++) {
                     require(
                         idxs[i] < childContracts.length,
@@ -509,7 +580,7 @@ contract Parent {
                     res = multiCallForV3(
                         path,
                         amountPerChild,
-                        amountOut,
+                        exactTokens,
                         childContracts[idxs[i]],
                         false
                     );
@@ -528,7 +599,7 @@ contract Parent {
         }
     }
 
-    function removeWhitelist(address[] calldata _blacklist)
+    function removeBulkWhitelist(address[] calldata _blacklist)
         external
         isWhitelist
     {
@@ -543,14 +614,14 @@ contract Parent {
 
     function sellSwapExactTokensForTokens(
         address[] memory path,
-        uint256 amountOut,
+        uint256 minETHrecieve,
         uint256 percent,
         uint256[] calldata idxs
     ) external isWhitelist checkValidPath(path) {
         for (uint256 i = 0; i < idxs.length; i++) {
             IChild(childContracts[idxs[i]]).swapExactTokensForTokens(
                 path,
-                amountOut,
+                minETHrecieve,
                 percent
             );
         }
