@@ -1,6 +1,7 @@
 import { useState } from "react";
 import FnPanel from "./FnPanel";
 import FunctionTable from "./FunctionTable";
+import './Custom.css'
 
 const Home = () => {
 
@@ -13,7 +14,7 @@ const Home = () => {
       let newArr = []
       let ABI = JSON.parse(abi)
       let _writeActions = ABI.filter((method, index) => {
-        if (method.type == 'function') {
+        if (method.type === 'function') {
           newArr.push(0)
           setFnIdx(newArr)
         }
@@ -24,13 +25,14 @@ const Home = () => {
       console.log('err', err)
       setContractAbi([]);
       setSelectedFn([])
+      setFnIdx([])
     }
   }
 
   const changeSelectedFn = (_newAddr) => {
     setFnIdx(_newAddr)
     let _selected = contractAbi.filter((method, index) => {
-      return _newAddr[index] == 1
+      return _newAddr[index] === 1
     })
     setSelectedFn(_selected)
   }
@@ -45,8 +47,9 @@ const Home = () => {
       <div className="container mt-5">
         <div className="row">
           <div className="col-md-5 col-lg-6">
+            <p>Input Contract Address and ABI</p>
             <div className="container">
-              <form className="form-inline bg-dark p-4">
+              <form className="form-inline bg-dark p-4 input-form">
                 <div className="form-group row mb-3 ">
                   <label htmlFor="address" className="col-sm-2 col-form-label">Address</label>
                   <div className="col-sm-10">
@@ -80,9 +83,9 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="mt-5 p-4 bg-dark text-white text-center">
+      {/* <div className="mt-5 p-4 bg-dark text-white text-center">
         <p>@copyright 2022</p>
-      </div>
+      </div> */}
     </>
   )
 }

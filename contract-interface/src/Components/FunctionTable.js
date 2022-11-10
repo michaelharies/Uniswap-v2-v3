@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import './Custom.css';
 
 const FunctionTable = ({ contractAbi, changeSelectedFn, fnIdx }) => {
@@ -14,7 +13,7 @@ const FunctionTable = ({ contractAbi, changeSelectedFn, fnIdx }) => {
       <table className="table table-dark table-striped table-hover table-responsive-md table-borderless">
         <thead>
           <tr>
-            <th>No</th>
+            <th scope='row'>No</th>
             <th>Name</th>
           </tr>
         </thead>

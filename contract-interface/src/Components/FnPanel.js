@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import './Custom.css'
+import './Custom.css';
 
 const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn }) => {
 
@@ -12,7 +11,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn }) => {
     <>
       {contractAbi?.map((item, idx) => {
         return (
-          <div className={`col-sm-12 p-3 bg-dark mb-4 fn-panel ${fnIdx[idx] == 1 ? "" : "d-none"}`} key={idx}>
+          <div className={`col-sm-12 p-3 bg-dark mb-4 fn-panel ${fnIdx[idx] === 1 ? "" : "d-none"}`} key={idx}>
             <div className="d-flex justify-content-between px-3 fn-title">
               <div className="fn-name">{item.name}</div>
               <div className="close" onClick={() => selectFn(idx)}>x</div>
