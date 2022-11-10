@@ -1,0 +1,27 @@
+td.fn-name {
+  cursor: pointer;
+}
+
+td.fn-name:hover {
+  outline: none;
+  border-color: #9ecaed;
+  box-shadow: 0 0 10px #9ecaed;
+}
+
+div.fn-panel {
+  border-radius: 7px;
+}
+
+div.fn-name {
+  color: aliceblue;
+}
+
+div.fn-title {
+  font-size: 20px;
+}
+
+div.fn-title .close {
+  color: red;
+  font-weight: 800;
+  cursor: pointer;
+}
