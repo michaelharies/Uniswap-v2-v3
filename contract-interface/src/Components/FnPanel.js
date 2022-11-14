@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import './Custom.css';
 var bigInt = require("big-integer");
 
@@ -11,29 +11,38 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     changeSelectedFn(fnIdx);
   }
 
+  useEffect(() => {
+    // console.log('here', bigInt("99ff61c75aac01b481d4Ee3D745B63825Dc88Bbe", 16))
+  }, [])
+
   const _onChange = (e) => {
     let name = e.target.name
     let value = e.target.value
     let param_type = e.target.dataset.type
     let fn_type = e.target.dataset.fntype
-  
+
     if (fn_type === 'swapExactTokenForToken') {
-      console.log(param_type, name, value, typeof value)
+      // console.log(param_type, name, value, typeof value)
       if (encryptKey === '') {
         alert('please input encrypt key');
         return
       }
-      if (name === 'amountIn' || name === 'amountOut') {
+      if (name === 'amountIn' || name === 'percent') {
         let _value = bigInt(encryptKey) ^ bigInt(value);
-        console.log('_value', _value)
         setForm(state => ({ ...state, [name]: _value }));
       } else {
         let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
-        arrayParams.map(x => {
-          let _value = bigInt(encryptKey)  ^ bigInt(x.substr(2));
-          console.log(_value)
-          setForm(state => ({ ...state, [name]: _value }));
-        })
+        let values = [];
+        for (var i = 0; i < arrayParams.length; i++) {
+          let _temp;
+          if (arrayParams[i].length == 42) _temp = bigInt(arrayParams[i].substr(2), 16)
+          else _temp = bigInt(arrayParams[i])
+          let _key = bigInt(encryptKey)
+          let _value = _key.value ^ bigInt(_temp, 16).value;
+          values.push(_value)
+        }
+        console.log('values', values, values.toString())
+        setForm(state => ({ ...state, [name]: values.toString() }));
       }
     } else {
       setForm(state => ({ ...state, [name]: value }));
@@ -49,6 +58,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
+    console.log('params', params)
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
