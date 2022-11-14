@@ -1,8 +1,8 @@
-td.fn-name {
+tr.fn-row {
   cursor: pointer;
 }
 
-td.fn-name:hover {
+tr.fn-row:hover {
   outline: none;
   border-color: #9ecaed;
   box-shadow: 0 0 10px #9ecaed;

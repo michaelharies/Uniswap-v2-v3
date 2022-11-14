@@ -10,7 +10,7 @@ const FunctionTable = ({ contractAbi, changeSelectedFn, fnIdx }) => {
   return (
     <div className="container mt-3">
       {/* <p>Contract Functions:</p> */}
-      <table className="table table-dark table-striped table-hover table-responsive-md table-borderless">
+      <table className="table table-dark table-striped table-responsive-md table-borderless">
         <thead>
           <tr>
             <th scope='row'>No</th>
@@ -21,8 +21,8 @@ const FunctionTable = ({ contractAbi, changeSelectedFn, fnIdx }) => {
           {
             contractAbi?.map((functions, key) => {
               return (
-                <tr>
-                  <td scope="row">{key}</td>
+                <tr className='fn-row' key={key}>
+                  <td>{key}</td>
                   <td className="fn-name" onClick={() => {
                     selectFn(key)
                     // setSelectFn(functions.name, key)

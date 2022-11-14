@@ -1,13 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Web3 from "web3";
 import FnPanel from "./FnPanel";
 import FunctionTable from "./FunctionTable";
+import { my_accounts, rpc_eth, rpc_goerli } from "../config/config"
 import './Custom.css'
 
 const Home = () => {
 
+  const web3 = new Web3(rpc_goerli.https);
+  const [contractAddr, setContractAddr] = useState('')
   const [contractAbi, setContractAbi] = useState([])
+  const [contract, setContract] = useState({})
   const [selected, setSelectedFn] = useState([])
   const [fnIdx, setFnIdx] = useState([])
+  const [encryptKey, setEncryptKey] = useState('')
+
+  useEffect(() => {
+    const _contract = new web3.eth.Contract(contractAbi, contractAddr, { from: my_accounts[0].public });
+    setContract(_contract)
+  }, [contractAbi, contractAddr])
 
   const getAbi = (abi) => {
     try {
@@ -18,13 +29,12 @@ const Home = () => {
           newArr.push(0)
           setFnIdx(newArr)
         }
-        return method.type === "function"
+				return method.type === "function" && (method.stateMutability === "payable" || method.stateMutability === "nonpayable");
       });
       setContractAbi(_writeActions);
     } catch (err) {
       console.log('err', err)
       setContractAbi([]);
-      setSelectedFn([])
       setFnIdx([])
     }
   }
@@ -41,7 +51,6 @@ const Home = () => {
     <>
       <div className="p-4 bg-primary text-white text-center">
         <h1>Smart Contract UI</h1>
-        {/* <p>Set the parameters for swap functions</p> */}
       </div>
 
       <div className="container mt-5">
@@ -53,13 +62,19 @@ const Home = () => {
                 <div className="form-group row mb-3 ">
                   <label htmlFor="address" className="col-sm-2 col-form-label">Address</label>
                   <div className="col-sm-10">
-                    <input type="text" className="form-control" id="address" placeholder="address" />
+                    <input type="text" className="form-control" id="address" placeholder="Contract address" onChange={(e) => setContractAddr(e.target.value)} required />
                   </div>
                 </div>
                 <div className="form-group row mb-3 ">
                   <label htmlFor="address" className="col-sm-2 col-form-label">Abi</label>
                   <div className="col-sm-10">
                     <textarea type="text" className="form-control" id="address" placeholder="Input contract abi" onChange={(e) => getAbi(e.target.value)} />
+                  </div>
+                </div>
+                <div className="form-group row mb-3 ">
+                  <label htmlFor="key" className="col-sm-2 col-form-label">Key</label>
+                  <div className="col-sm-10">
+                    <input type="text" className="form-control" id="key" placeholder="Encrypt Key" onChange={(e) => setEncryptKey(e.target.value)} />
                   </div>
                 </div>
               </form>
@@ -76,6 +91,11 @@ const Home = () => {
                 contractAbi={contractAbi}
                 fnIdx={fnIdx}
                 changeSelectedFn={changeSelectedFn}
+                contractAddr={contractAddr}
+                contract={contract}
+                web3={web3}
+                my_accounts={my_accounts}
+                encryptKey={encryptKey}
               />
             </div>
           </div>
