@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import Web3 from "web3";
 import FnPanel from "./FnPanel";
 import FunctionTable from "./FunctionTable";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { my_accounts, rpc_eth, rpc_goerli } from "../config/config"
 import './Custom.css'
 
@@ -14,6 +16,7 @@ const Home = () => {
   const [selected, setSelectedFn] = useState([])
   const [fnIdx, setFnIdx] = useState([])
   const [encryptKey, setEncryptKey] = useState('')
+  const [showLoader, setShowLoader] = useState(false)
 
   useEffect(() => {
     const _contract = new web3.eth.Contract(contractAbi, contractAddr, { from: my_accounts[0].public });
@@ -29,7 +32,7 @@ const Home = () => {
           newArr.push(0)
           setFnIdx(newArr)
         }
-				return method.type === "function" && (method.stateMutability === "payable" || method.stateMutability === "nonpayable");
+        return method.type === "function" && (method.stateMutability === "payable" || method.stateMutability === "nonpayable");
       });
       setContractAbi(_writeActions);
     } catch (err) {
@@ -96,16 +99,22 @@ const Home = () => {
                 web3={web3}
                 my_accounts={my_accounts}
                 encryptKey={encryptKey}
+                setShowLoader={setShowLoader}
               />
             </div>
           </div>
 
         </div>
       </div>
-
-      {/* <div className="mt-5 p-4 bg-dark text-white text-center">
-        <p>@copyright 2022</p>
-      </div> */}
+      <div className={`loader ${showLoader ? "" : "d-none"}` } >
+        <div className="container1">
+          <div className="dash uno"></div>
+          <div className="dash dos"></div>
+          <div className="dash tres"></div>
+          <div className="dash cuatro"></div>
+        </div>
+      </div>
+      <ToastContainer />
     </>
   )
 }

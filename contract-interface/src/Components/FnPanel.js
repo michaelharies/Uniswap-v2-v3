@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
 import './Custom.css';
 var bigInt = require("big-integer");
 
-const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey }) => {
+const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey,setShowLoader }) => {
 
   const [form, setForm] = useState({});
+
+  // useEffect(() => {
+  //   toast.success('Confirmed Transaction!', { pauseOnFocusLoss: false });
+  // }, [])
 
   const selectFn = (_key) => {
     fnIdx[_key] = 0;
@@ -14,12 +19,10 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
   const _onChange = (e) => {
     let name = e.target.name
     let value = e.target.value
-    console.log('value', value)
     let param_type = e.target.dataset.type
     let fn_type = e.target.dataset.fntype
 
     if (fn_type === 'setParams2') {
-      // console.log(param_type, name, value, typeof value)
       if (encryptKey === '') {
         alert('please input encrypt key');
         return
@@ -41,7 +44,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
           let _value = _key.value ^ _temp.value;
           values.push(_value)
         }
-        console.log('values', values)
         setForm(state => ({ ...state, [name]: values }));
       }
     } else {
@@ -50,6 +52,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
   }
 
   const clickFn = async (e) => {
+    setShowLoader(true)
     let params = [];
     contractAbi?.map((currentFn, key) => {
       if (currentFn.name === e.target.name) {
@@ -58,11 +61,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
-    console.log('params', params)
-    let _params = [
-      ['0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-        '0x20fe562d797a42dcb3399062ae9546cd06f63280'], 500, 600]
-    console.log('params', _params)
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
@@ -77,9 +75,11 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       }
       const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[0].private);
       const txRes = await web3.eth.sendSignedTransaction(createTransaction.rawTransaction);
-      console.log('tx res', txRes)
-      // let res = await txRes.wait();
-      // console.log('res', res)
+      console.log('tx res', txRes.transactionHash)
+      if(txRes) {
+        setShowLoader(false)
+        toast.success(`Confirmed Transaction!!`, { pauseOnFocusLoss: false });
+      }
     } catch (err) {
       console.log('err', err)
     }
