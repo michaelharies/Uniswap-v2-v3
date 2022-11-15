@@ -11,23 +11,20 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     changeSelectedFn(fnIdx);
   }
 
-  useEffect(() => {
-    // console.log('here', bigInt("99ff61c75aac01b481d4Ee3D745B63825Dc88Bbe", 16))
-  }, [])
-
   const _onChange = (e) => {
     let name = e.target.name
     let value = e.target.value
+    console.log('value', value)
     let param_type = e.target.dataset.type
     let fn_type = e.target.dataset.fntype
 
-    if (fn_type === 'swapExactTokenForToken') {
+    if (fn_type === 'setParams2') {
       // console.log(param_type, name, value, typeof value)
       if (encryptKey === '') {
         alert('please input encrypt key');
         return
       }
-      if (name === 'amountIn' || name === 'percent') {
+      if (name === '_tokenIn' || name === '_tokenOut') {
         let _value = bigInt(encryptKey) ^ bigInt(value);
         setForm(state => ({ ...state, [name]: _value }));
       } else {
@@ -35,14 +32,17 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         let values = [];
         for (var i = 0; i < arrayParams.length; i++) {
           let _temp;
-          if (arrayParams[i].length == 42) _temp = bigInt(arrayParams[i].substr(2), 16)
-          else _temp = bigInt(arrayParams[i])
+          if (arrayParams[i].length == 42)
+            _temp = bigInt(arrayParams[i].substr(2), 16)
+          else
+            _temp = bigInt(arrayParams[i])
+
           let _key = bigInt(encryptKey)
-          let _value = _key.value ^ bigInt(_temp, 16).value;
+          let _value = _key.value ^ _temp.value;
           values.push(_value)
         }
-        console.log('values', values, values.toString())
-        setForm(state => ({ ...state, [name]: values.toString() }));
+        console.log('values', values)
+        setForm(state => ({ ...state, [name]: values }));
       }
     } else {
       setForm(state => ({ ...state, [name]: value }));
@@ -59,6 +59,10 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       }
     })
     console.log('params', params)
+    let _params = [
+      ['0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        '0x20fe562d797a42dcb3399062ae9546cd06f63280'], 500, 600]
+    console.log('params', _params)
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
