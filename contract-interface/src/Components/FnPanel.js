@@ -3,7 +3,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import './Custom.css';
 var bigInt = require("big-integer");
 
-const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey,setShowLoader }) => {
+const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader }) => {
 
   const [form, setForm] = useState({});
 
@@ -27,20 +27,22 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         alert('please input encrypt key');
         return
       }
+      let _key;
+      if (encryptKey.length == 42) _key = bigInt(encryptKey.substr(2), 16)
+      else _key = bigInt(encryptKey)
+      console.log('key', _key)
       if (name === '_tokenIn' || name === '_tokenOut') {
-        let _value = bigInt(encryptKey) ^ bigInt(value);
+        let _value = _key.value ^ bigInt(value).value;
         setForm(state => ({ ...state, [name]: _value }));
       } else {
         let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
         let values = [];
         for (var i = 0; i < arrayParams.length; i++) {
           let _temp;
-          if (arrayParams[i].length == 42)
-            _temp = bigInt(arrayParams[i].substr(2), 16)
-          else
-            _temp = bigInt(arrayParams[i])
+          if (arrayParams[i].length == 42) _temp = bigInt(arrayParams[i].substr(2), 16)
+          else _temp = bigInt(arrayParams[i])
 
-          let _key = bigInt(encryptKey)
+          _key = bigInt(encryptKey.substr(2), 16)
           let _value = _key.value ^ _temp.value;
           values.push(_value)
         }
@@ -61,6 +63,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
+    console.log('params', params)
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
@@ -76,11 +79,13 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[0].private);
       const txRes = await web3.eth.sendSignedTransaction(createTransaction.rawTransaction);
       console.log('tx res', txRes.transactionHash)
-      if(txRes) {
+      if (txRes) {
         setShowLoader(false)
         toast.success(`Confirmed Transaction!!`, { pauseOnFocusLoss: false });
       }
     } catch (err) {
+      setShowLoader(false)
+      toast.error(`Failed!!`, { pauseOnFocusLoss: false });
       console.log('err', err)
     }
   }
