@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Web3 from "web3";
+import { my_accounts, rpc_goerli } from "../config/config";
+import './Custom.css';
 import FnPanel from "./FnPanel";
 import FunctionTable from "./FunctionTable";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { my_accounts, rpc_eth, rpc_goerli } from "../config/config"
-import './Custom.css'
 
 const Home = () => {
 
