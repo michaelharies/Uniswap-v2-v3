@@ -1,15 +1,11 @@
-import { useEffect, useState } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
+import { useState } from 'react';
+import { toast } from 'react-toastify';
 import './Custom.css';
 var bigInt = require("big-integer");
 
 const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader }) => {
 
   const [form, setForm] = useState({});
-
-  // useEffect(() => {
-  //   toast.success('Confirmed Transaction!', { pauseOnFocusLoss: false });
-  // }, [])
 
   const selectFn = (_key) => {
     fnIdx[_key] = 0;
