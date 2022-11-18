@@ -10,6 +10,10 @@ contract Test {
     uint256 public amountIn;
     uint256 public amountOut;
 
+    constructor(uint256 _key) {
+        key = _key;
+    }
+
     function setKey(uint256 _key) public {
         key = _key;
     }
