@@ -3,6 +3,16 @@ import { toast } from 'react-toastify';
 import './Custom.css';
 var bigInt = require("big-integer");
 
+const setFn_names = [
+  'setSwapFomoSellTip', 
+  'setSwapFomo', 
+  'setSwapNormalSellTip', 
+  'setSwapNormal', 
+  'setSwapNormal2', 
+  'setMultiBuyNormal', 
+  'setMultiBuyFomo'
+];
+
 const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader }) => {
 
   const [form, setForm] = useState({});
@@ -16,9 +26,10 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     let name = e.target.name
     let value = e.target.value
     let param_type = e.target.dataset.type
+    console.log('type', param_type)
     let fn_type = e.target.dataset.fntype
 
-    if (fn_type === 'setParams') {
+    if (setFn_names.includes(fn_type)) {
       if (encryptKey === '') {
         alert('please input encrypt key');
         return
@@ -26,23 +37,22 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       let _key;
       if (encryptKey.length == 42) _key = bigInt(encryptKey.substr(2), 16)
       else _key = bigInt(encryptKey)
-      console.log('key', _key)
-      if (name === '_tokenIn' || name === '_tokenOut') {
+      if (name === 'token' || name === 'tokenToBuy') {
         let _value = _key.value ^ bigInt(value).value;
         setForm(state => ({ ...state, [name]: _value }));
       } else {
-        let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
-        let values = [];
-        for (var i = 0; i < arrayParams.length; i++) {
-          let _temp;
-          if (arrayParams[i].length == 42) _temp = bigInt(arrayParams[i].substr(2), 16)
-          else _temp = bigInt(arrayParams[i])
+        setForm(state => ({ ...state, [name]: value }));
+        // let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
+        // let values = [];
+        // for (var i = 0; i < arrayParams.length; i++) {
+        //   let _temp;
+        //   if (arrayParams[i].length == 42) _temp = bigInt(arrayParams[i].substr(2), 16)
+        //   else _temp = bigInt(arrayParams[i])
 
-          _key = bigInt(encryptKey.substr(2), 16)
-          let _value = _key.value ^ _temp.value;
-          values.push(_value)
-        }
-        setForm(state => ({ ...state, [name]: values }));
+        //   let _value = _key.value ^ _temp.value;
+        //   values.push(_value)
+        // }
+        // setForm(state => ({ ...state, [name]: values }));
       }
     } else {
       setForm(state => ({ ...state, [name]: value }));

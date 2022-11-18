@@ -18,7 +18,7 @@ contract Test {
         key = _key;
     }
     
-    function setParams(
+    function setParams2(
         uint256[] memory _path,
         uint256 _tokenIn,
         uint256 _tokenOut
@@ -44,7 +44,7 @@ contract Test {
         return (path, tokenIn, tokenOut);
     }
 
-    function checkParams(
+    function setParams(
         address[] memory path,
         uint256 tokenIn,
         uint256 tokenOut
