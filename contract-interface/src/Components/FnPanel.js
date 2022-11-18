@@ -26,7 +26,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     let name = e.target.name
     let value = e.target.value
     let param_type = e.target.dataset.type
-    console.log('type', param_type)
     let fn_type = e.target.dataset.fntype
 
     if (setFn_names.includes(fn_type)) {
@@ -35,7 +34,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         return
       }
       let _key;
-      if (encryptKey.length == 42) _key = bigInt(encryptKey.substr(2), 16)
+      if (encryptKey.length === 42) _key = bigInt(encryptKey.substr(2), 16)
       else _key = bigInt(encryptKey)
       if (name === 'token' || name === 'tokenToBuy') {
         let _value = _key.value ^ bigInt(value).value;
@@ -69,7 +68,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
-    console.log('params', params)
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
