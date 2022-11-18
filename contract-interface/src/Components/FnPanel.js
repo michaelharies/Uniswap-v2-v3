@@ -18,7 +18,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     let param_type = e.target.dataset.type
     let fn_type = e.target.dataset.fntype
 
-    if (fn_type === 'setParams2') {
+    if (fn_type === 'setParams') {
       if (encryptKey === '') {
         alert('please input encrypt key');
         return
