@@ -34,8 +34,9 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         return
       }
       let _key;
-      if (encryptKey.length === 42) _key = bigInt(encryptKey.substr(2), 16)
+      if (encryptKey.substr(0,2) == '0x') _key = bigInt(encryptKey.substr(2), 16)
       else _key = bigInt(encryptKey)
+      console.log('key', key)
       if (name === 'token' || name === 'tokenToBuy') {
         let _value = _key.value ^ bigInt(value).value;
         setForm(state => ({ ...state, [name]: _value }));
@@ -53,6 +54,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         // }
         // setForm(state => ({ ...state, [name]: values }));
       }
+      console.log('here')
     } else {
       setForm(state => ({ ...state, [name]: value }));
     }
