@@ -1,3 +1,22 @@
+body {
+  background-color: #2f3033 !important;
+  background-image: url('./assets/background.svg');
+  background-size: 650px;
+  background-repeat: repeat;
+  background-position: left center;
+  height: max-content;
+  background-attachment:initial;
+}
+input.form-control, textarea.form-control{
+  background-color: #1a1a1e;
+  border: 1px solid #1a1a1e;
+  outline: 0;
+  color: #ffffff;
+}
+input.form-control:focus, textarea.form-control:focus {
+  background-color: #262631;
+  color: #ffffff;
+}
 .App {
   text-align: center;
 }

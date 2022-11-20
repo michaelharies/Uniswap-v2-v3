@@ -52,14 +52,13 @@ const Home = () => {
 
   return (
     <>
-      <div className="p-4 bg-primary text-white text-center">
+      <div className="p-4 text-white text-center">
         <h1>Smart Contract UI</h1>
       </div>
 
       <div className="container mt-5">
         <div className="row">
           <div className="col-md-5 col-lg-6">
-            <p>Input Contract Address and ABI</p>
             <div className="container">
               <form className="form-inline bg-dark p-4 input-form">
                 <div className="form-group row mb-3 ">
@@ -106,7 +105,7 @@ const Home = () => {
 
         </div>
       </div>
-      <div className={`loader ${showLoader ? "" : "d-none"}` } >
+      <div className={`loader ${showLoader ? "" : "d-none"}`} >
         <div className="container1">
           <div className="dash uno"></div>
           <div className="dash dos"></div>

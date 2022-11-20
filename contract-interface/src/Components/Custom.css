@@ -1,7 +1,12 @@
+.inputGroup, .fn-table{
+  background-color: #28282a !important;
+}
 tr.fn-row {
   cursor: pointer;
 }
-
+label {
+  color: aliceblue;
+}
 tr.fn-row:hover {
   outline: none;
   border-color: #9ecaed;
