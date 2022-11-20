@@ -4,14 +4,16 @@ import './Custom.css';
 var bigInt = require("big-integer");
 
 const setFn_names = [
-  'setSwapFomoSellTip', 
-  'setSwapFomo', 
-  'setSwapNormalSellTip', 
-  'setSwapNormal', 
-  'setSwapNormal2', 
-  'setMultiBuyNormal', 
-  'setMultiBuyFomo'
+  'setBulkExact',
+  'setBulkFomo',
+  'setCustomPair',
+  'setFomo',
+  'setMulticall',
+  'setRecipients',
+  'setSwap',
+  'setrouterAddress',
 ];
+const _data = [];
 
 const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader }) => {
 
@@ -34,11 +36,10 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         return
       }
       let _key;
-      if (encryptKey.substr(0,2) == '0x') _key = bigInt(encryptKey.substr(2), 16)
+      if (encryptKey.substr(0, 2) == '0x') _key = bigInt(encryptKey.substr(2), 16)
       else _key = bigInt(encryptKey)
-      console.log('key', key)
       if (name === 'token' || name === 'tokenToBuy') {
-        let _value = _key.value ^ bigInt(value).value;
+        let _value = _key.value ^ bigInt(value.substr(2), 16).value;
         setForm(state => ({ ...state, [name]: _value }));
       } else {
         setForm(state => ({ ...state, [name]: value }));
@@ -54,14 +55,13 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         // }
         // setForm(state => ({ ...state, [name]: values }));
       }
-      console.log('here')
     } else {
       setForm(state => ({ ...state, [name]: value }));
     }
   }
 
   const clickFn = async (e) => {
-    setShowLoader(true)
+    _data[e.target.name] = toast.loading(`${e.target.value} is pending....`);
     let params = [];
     contractAbi?.map((currentFn, key) => {
       if (currentFn.name === e.target.name) {
@@ -87,11 +87,10 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       console.log('tx res', txRes.transactionHash)
       if (txRes) {
         setShowLoader(false)
-        toast.success(`Confirmed Transaction!!`, { pauseOnFocusLoss: false });
+        toast.update(_data[e.target.name], { render: `Successfully ${e.target.value}.`, type: "success", isLoading: false, autoClose: 10000, className: 'rotateY animated', closeButton: true, pauseOnFocusLoss: false });
       }
     } catch (err) {
-      setShowLoader(false)
-      toast.error(`Failed!!`, { pauseOnFocusLoss: false });
+      toast.update(_data[e.target.name], { render: `Failed!! ${e.target.value}`, type: "error", isLoading: false, closeButton: true, autoClose: false });
       console.log('err', err)
     }
   }

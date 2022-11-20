@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Web3 from "web3";
-import { my_accounts, rpc_goeorli } from "../config/config";
+import { my_accounts, rpc_goerli } from "../config/config";
 import './Custom.css';
 import FnPanel from "./FnPanel";
 import FunctionTable from "./FunctionTable";
