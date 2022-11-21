@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-toastify';
 import './Custom.css';
 var bigInt = require("big-integer");
@@ -92,8 +92,8 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         type: 0,
         data: tx.encodeABI(),
         nonce: nonce + i,
-        gas: Math.round(gas * 15 / 10),
-        gasPrice: Math.round(gasPrice * 15 / 10)
+        gas: Math.round(gas * 1.5),
+        gasPrice: Math.round(gasPrice * 1.5)
       }
       i++;
       const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[0].private);

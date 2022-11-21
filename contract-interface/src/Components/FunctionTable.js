@@ -1,7 +1,7 @@
 import './Custom.css';
 
 const FunctionTable = ({ contractAbi, changeSelectedFn, fnIdx }) => {
-
+  
   const selectFn = async(_key) => {
     fnIdx[_key] = 1;
     changeSelectedFn(fnIdx);

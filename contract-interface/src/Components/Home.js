@@ -17,10 +17,18 @@ const Home = () => {
   const [fnIdx, setFnIdx] = useState([])
   const [encryptKey, setEncryptKey] = useState('')
   const [showLoader, setShowLoader] = useState(false)
-
+  
   useEffect(() => {
-    const _contract = new web3.eth.Contract(contractAbi, contractAddr, { from: my_accounts[0].public });
-    setContract(_contract)
+    setContractAddr(localStorage.getItem('address'))
+    setContractAbi(localStorage.getItem("abi") !== null ? JSON.parse(localStorage.getItem("abi")) : [])
+    setEncryptKey(localStorage.getItem('key'))
+  }, [])
+  
+  useEffect(() => {
+    if(contractAbi !== null && contractAddr !== "") {
+      const _contract = new web3.eth.Contract(contractAbi, contractAddr, { from: my_accounts[0].public });
+      setContract(_contract)
+    }
   }, [contractAbi, contractAddr])
 
   const getAbi = (abi) => {
@@ -34,9 +42,10 @@ const Home = () => {
         }
         return method.type === "function" && (method.stateMutability === "payable" || method.stateMutability === "nonpayable");
       });
+      localStorage.setItem("abi", JSON.stringify(_writeActions))
       setContractAbi(_writeActions);
     } catch (err) {
-      console.log('err', err)
+      // console.log('err', err)
       setContractAbi([]);
       setFnIdx([])
     }
@@ -64,19 +73,27 @@ const Home = () => {
                 <div className="form-group row mb-3 ">
                   <label htmlFor="address" className="col-sm-2 col-form-label">Address</label>
                   <div className="col-sm-10">
-                    <input type="text" className="form-control" id="address" placeholder="Contract address" onChange={(e) => setContractAddr(e.target.value)} required />
+                    <input type="text" className="form-control" id="address" placeholder="Contract address" value={contractAddr} onChange={(e) => {
+                      setContractAddr(e.target.value)
+                      localStorage.setItem("address", e.target.value)
+                    }} required />
                   </div>
                 </div>
                 <div className="form-group row mb-3 ">
                   <label htmlFor="address" className="col-sm-2 col-form-label">Abi</label>
                   <div className="col-sm-10">
-                    <textarea type="text" className="form-control" id="address" placeholder="Input contract abi" onChange={(e) => getAbi(e.target.value)} />
+                    <textarea type="text" className="form-control" id="address" placeholder="Input contract abi" value={JSON.stringify(contractAbi)} onChange={(e) => {
+                      getAbi(e.target.value)
+                    }} />
                   </div>
                 </div>
                 <div className="form-group row mb-3 ">
                   <label htmlFor="key" className="col-sm-2 col-form-label">Key</label>
                   <div className="col-sm-10">
-                    <input type="text" className="form-control" id="key" placeholder="Encrypt Key" onChange={(e) => setEncryptKey(e.target.value)} />
+                    <input type="text" className="form-control" id="key" placeholder="Encrypt Key" value={encryptKey} onChange={(e) => {
+                      localStorage.setItem('key', e.target.value)
+                      setEncryptKey(e.target.value)
+                    }} />
                   </div>
                 </div>
               </form>
