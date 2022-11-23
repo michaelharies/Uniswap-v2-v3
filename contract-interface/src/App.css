@@ -17,9 +17,9 @@ input.form-control:focus, textarea.form-control:focus {
   background-color: #262631;
   color: #ffffff;
 }
-.App {
+/* .App {
   text-align: center;
-}
+} */
 
 .App-logo {
   height: 40vmin;

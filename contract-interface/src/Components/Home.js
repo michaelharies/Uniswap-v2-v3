@@ -3,8 +3,8 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Web3 from "web3";
 import { my_accounts, rpc_goerli } from "../config/config";
+import ContractAbi from '../config/contractAbi.json';
 import './Custom.css';
-import ContractAbi from '../config/contractAbi.json'
 import FnPanel from "./FnPanel";
 import FunctionTable from "./FunctionTable";
 
@@ -18,12 +18,14 @@ const Home = () => {
   const [fnIdx, setFnIdx] = useState([])
   const [encryptKey, setEncryptKey] = useState('')
   const [showLoader, setShowLoader] = useState(false)
+  const [gasPrice, setGasPrice] = useState(5)
+  const [gasLimit, setGasLimit] = useState(30000)
 
   useEffect(() => {
     setContractAddr(localStorage.getItem('address'))
     setEncryptKey(localStorage.getItem('key'))
   }, [])
-  
+
   useEffect(() => {
     if (contractAddr !== "" && contractAddr.length > 40) {
       const _contract = new web3.eth.Contract(ContractAbi, contractAddr, { from: my_accounts[1].public });
@@ -106,6 +108,24 @@ const Home = () => {
             />
           </div>
           <div className="col-md-7 col-lg-6">
+            <div className="row justify-content-evenly bg-dark p-2 rounded-2 mb-4">
+              <div className="col-md-6">
+                <div className="form-group row">
+                  <label htmlFor="gas" className="col-sm-6 col-form-label">GAS PRICE</label>
+                  <div className="col-sm-6">
+                    <input type="text" className="form-control" name="customGasPrice" value={gasPrice} onChange={(e) => { setGasPrice(e.target.value)}} id="gas" placeholder="20" />
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="form-group row">
+                  <label htmlFor="gas" className="col-sm-6 col-form-label">GAS LIMIT</label>
+                  <div className="col-sm-6">
+                    <input type="text" className="form-control" name="customGasPrice" value={gasLimit} onChange={(e) => {setGasLimit(eval(e.target.value)) }} id="gas" placeholder="20" />
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="row">
               <FnPanel
                 contractAbi={contractAbi}
@@ -117,6 +137,8 @@ const Home = () => {
                 my_accounts={my_accounts}
                 encryptKey={encryptKey}
                 setShowLoader={setShowLoader}
+                gasPrice={gasPrice}
+                gasLimit={gasLimit}
               />
             </div>
           </div>

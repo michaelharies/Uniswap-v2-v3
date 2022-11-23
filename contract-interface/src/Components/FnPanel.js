@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
+import { confirmAlert } from 'react-confirm-alert'; // Import
+import 'react-confirm-alert/src/react-confirm-alert.css'; // Import css
 import './Custom.css';
+
 var bigInt = require("big-integer");
 
 const setFn_names = [
@@ -13,12 +16,12 @@ const setFn_names = [
   'setSwapNormalSellTip'
 ];
 const _data = [];
-var i = 0;
 
-const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader }) => {
+const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader, gasPrice, gasLimit }) => {
 
   const [form, setForm] = useState({});
   const [pending, setPending] = useState(false)
+  const [badTx, setBadTx] = useState(false)
 
   const selectFn = async (_key) => {
     fnIdx[_key] = 0;
@@ -58,6 +61,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     } else {
       let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
       if (param_type.substr(-2) === '[]') {
+
         let values = [];
         for (var i = 0; i < arrayParams.length; i++) {
           values.push(arrayParams[i])
@@ -68,6 +72,32 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       }
     }
   }
+
+  const submit = () => {
+    confirmAlert({
+      title: 'Confirm to submit',
+      message: 'Are you sure to do this.',
+      buttons: [
+        {
+          label: 'Yes',
+          onClick: () => setBadTx(false)
+        },
+        {
+          label: 'No',
+          onClick: () => setBadTx(true)
+        }
+      ],
+      closeOnEscape: true,
+      closeOnClickOutside: true,
+      keyCodeForClose: [8, 32],
+      willUnmount: () => { },
+      afterClose: () => { },
+      onClickOutside: () => { },
+      onKeypress: () => { },
+      onKeypressEscape: () => { },
+      overlayClassName: "overlay-custom-class-name"
+    });
+  };
 
   const clickFn = async (e) => {
     if (pending) {
@@ -84,15 +114,24 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
+    if (badTx) return
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
       let gasPrice = await web3.eth.getGasPrice()
-      let nonce;
-      if (i === 0) {
-        nonce = await web3.eth.getTransactionCount(my_accounts[1].public)
-      } else  {
-        nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
+      let normal = await web3.eth.getTransactionCount(my_accounts[1].public)
+      let nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
+      let earliest = await web3.eth.getTransactionCount(my_accounts[1].public, "earliest")
+      let latest = await web3.eth.getTransactionCount(my_accounts[1].public, "latest")
+      console.log(111, normal, nonce, earliest, latest)
+      console.log('hh', gas, gasLimit, gasPrice)
+      if (gasLimit < gas) {
+        let confirm = window.confirm("You set low Gas Price and Gas Limit than default. It will take long time to confirm this tx")
+        if (!confirm) {
+          setPending(false)
+          toast.update(_data[e.target.value], { render: `Declined Tx for ${e.target.value}`, type: "warn", isLoading: false, closeButton: true, autoClose: 5000 });
+          return
+        }
       }
       let txdata = {
         to: contractAddr,
@@ -102,15 +141,32 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         gas: gas,
         gasPrice: gasPrice
       }
-      i++;
       const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[1].private);
       setPending(false)
-      toast.update(_data[e.target.value], { render: `${e.target.value} is pending.... hash: ${createTransaction.transactionHash}`, type: "success", isLoading: true, className: 'rotateY animated', closeButton: true, pauseOnFocusLoss: false });
+      toast.update(
+        _data[e.target.value],
+        {
+          render: `${e.target.value} is pending.... hash: ${createTransaction.transactionHash}`,
+          type: "success",
+          isLoading: true,
+          className: 'rotateY animated',
+          closeButton: true,
+          pauseOnFocusLoss: false
+        });
       const txRes = await web3.eth.sendSignedTransaction(createTransaction.rawTransaction);
-      console.log('tx res', txRes.transactionHash)
+      console.log('tx res', txRes)
       if (txRes) {
         setShowLoader(false)
-        toast.update(_data[e.target.value], { render: `Successfully ${e.target.value}.`, type: "success", isLoading: false, autoClose: 5000, className: 'rotateY animated', closeButton: true, pauseOnFocusLoss: false });
+        toast.update(
+          _data[e.target.value],
+          {
+            render: `Successfully ${e.target.value}.`,
+            type: "success",
+            isLoading: false,
+            autoClose: 5000,
+            className: 'rotateY animated',
+            closeButton: true, pauseOnFocusLoss: false
+          });
       }
     } catch (err) {
       setPending(false)

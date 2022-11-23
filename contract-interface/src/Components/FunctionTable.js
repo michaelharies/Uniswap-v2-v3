@@ -9,7 +9,7 @@ const FunctionTable = ({ contractAbi, changeSelectedFn, fnIdx }) => {
 
   return (
     <div className="container mt-3">
-      <table className="table table-dark table-responsive-md fn-table">
+      <table className="table table-dark table-responsive-md fn-table text-center">
         <thead>
           <tr>
             <th scope='row'>No</th>
