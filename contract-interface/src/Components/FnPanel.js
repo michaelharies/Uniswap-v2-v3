@@ -118,7 +118,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
-      let gasPrice = await web3.eth.getGasPrice()
+      let _gasPrice = await web3.eth.getGasPrice()
       let normal = await web3.eth.getTransactionCount(my_accounts[1].public)
       let nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
       let earliest = await web3.eth.getTransactionCount(my_accounts[1].public, "earliest")
@@ -126,10 +126,19 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       console.log(111, normal, nonce, earliest, latest)
       console.log('hh', gas, gasLimit, gasPrice)
       if (gasLimit < gas) {
-        let confirm = window.confirm("You set low Gas Price and Gas Limit than default. It will take long time to confirm this tx")
+        let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take long time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice/10**9}, Gas Limit: ${gas}`)
         if (!confirm) {
           setPending(false)
-          toast.update(_data[e.target.value], { render: `Declined Tx for ${e.target.value}`, type: "warn", isLoading: false, closeButton: true, autoClose: 5000 });
+          toast.update(
+            _data[e.target.value],
+            {
+              render: `Declined Tx for ${e.target.value}`,
+              type: "warn",
+              isLoading: false,
+              closeButton: true,
+              autoClose: 5000,
+              pauseOnFocusLoss: false
+            });
           return
         }
       }
@@ -137,8 +146,8 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         to: contractAddr,
         type: 0,
         data: tx.encodeABI(),
-        nonce: nonce,
-        gas: gas,
+        nonce: normal,
+        gas: gasLimit,
         gasPrice: gasPrice
       }
       const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[1].private);

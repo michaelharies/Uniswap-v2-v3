@@ -18,7 +18,7 @@ const Home = () => {
   const [fnIdx, setFnIdx] = useState([])
   const [encryptKey, setEncryptKey] = useState('')
   const [showLoader, setShowLoader] = useState(false)
-  const [gasPrice, setGasPrice] = useState(5)
+  const [gasPrice, setGasPrice] = useState(30)
   const [gasLimit, setGasLimit] = useState(30000)
 
   useEffect(() => {
