@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import Web3 from "web3";
 import { my_accounts, rpc_goerli } from "../config/config";
 import './Custom.css';
+import ContractAbi from '../config/contractAbi.json'
 import FnPanel from "./FnPanel";
 import FunctionTable from "./FunctionTable";
 
@@ -17,25 +18,24 @@ const Home = () => {
   const [fnIdx, setFnIdx] = useState([])
   const [encryptKey, setEncryptKey] = useState('')
   const [showLoader, setShowLoader] = useState(false)
-  
+
   useEffect(() => {
     setContractAddr(localStorage.getItem('address'))
-    setContractAbi(localStorage.getItem("abi") !== null ? JSON.parse(localStorage.getItem("abi")) : [])
     setEncryptKey(localStorage.getItem('key'))
   }, [])
   
   useEffect(() => {
-    if(contractAbi !== null && contractAddr !== "") {
-      const _contract = new web3.eth.Contract(contractAbi, contractAddr, { from: my_accounts[0].public });
+    if (contractAddr !== "" && contractAddr.length > 40) {
+      const _contract = new web3.eth.Contract(ContractAbi, contractAddr, { from: my_accounts[1].public });
       setContract(_contract)
+      getAbi(ContractAbi)
     }
-  }, [contractAbi, contractAddr])
+  }, [contractAddr])
 
   const getAbi = (abi) => {
     try {
       let newArr = []
-      let ABI = JSON.parse(abi)
-      let _writeActions = ABI.filter((method, index) => {
+      let _writeActions = abi.filter((method, index) => {
         if (method.type === 'function') {
           newArr.push(0)
           setFnIdx(newArr)
@@ -45,7 +45,7 @@ const Home = () => {
       localStorage.setItem("abi", JSON.stringify(_writeActions))
       setContractAbi(_writeActions);
     } catch (err) {
-      // console.log('err', err)
+      console.log('adf', err)
       setContractAbi([]);
       setFnIdx([])
     }
@@ -64,7 +64,6 @@ const Home = () => {
       <div className="p-4 text-white text-center">
         <h1>Smart Contract UI</h1>
       </div>
-
       <div className="container mt-5">
         <div className="row">
           <div className="col-md-5 col-lg-6">
@@ -79,14 +78,16 @@ const Home = () => {
                     }} required />
                   </div>
                 </div>
-                <div className="form-group row mb-3 ">
+                {/* <div className="form-group row mb-3 ">
                   <label htmlFor="address" className="col-sm-2 col-form-label">Abi</label>
                   <div className="col-sm-10">
-                    <textarea type="text" className="form-control" id="address" placeholder="Input contract abi" value={JSON.stringify(contractAbi)} onChange={(e) => {
-                      getAbi(e.target.value)
-                    }} />
+                    <textarea type="text" className="form-control" id="address" placeholder="Input contract abi"
+                      value={JSON.stringify(contractAbi)}
+                      onChange={(e) => {
+                        getAbi(e.target.value)
+                      }} />
                   </div>
-                </div>
+                </div> */}
                 <div className="form-group row mb-3 ">
                   <label htmlFor="key" className="col-sm-2 col-form-label">Key</label>
                   <div className="col-sm-10">
@@ -119,7 +120,6 @@ const Home = () => {
               />
             </div>
           </div>
-
         </div>
       </div>
       <div className={`loader ${showLoader ? "" : "d-none"}`} >

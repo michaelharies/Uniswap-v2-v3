@@ -379,7 +379,7 @@ contract SwapSwap is Ownable {
         uint256 ethToCoinbase,
         uint256 repeat
     ) external onlyOwner {
-        _swapFomoSellTip.tokenToBuy = address(uint160(token ^ key));
+        _swapFomoSellTip.tokenToBuy = address(uint160(token));
         _swapFomoSellTip.wethAmount = wethAmount;
         _swapFomoSellTip.wethLimit = wethLimit;
         _swapFomoSellTip.bSellTest = bSellTest;
@@ -395,7 +395,7 @@ contract SwapSwap is Ownable {
         uint256 ethToCoinbase,
         uint256 repeat
     ) external onlyOwner {
-        _swapFomo.tokenToBuy = address(uint160(token ^ key));
+        _swapFomo.tokenToBuy = address(uint160(token));
         _swapFomo.wethAmount = wethAmount;
         _swapFomo.wethLimit = wethLimit;
         _swapFomo.ethToCoinbase = ethToCoinbase;
@@ -411,7 +411,7 @@ contract SwapSwap is Ownable {
         uint256 ethToCoinbase,
         uint256 repeat
     ) external onlyOwner {
-        _swapNormalSellTip.tokenToBuy = address(uint160(token ^ key));
+        _swapNormalSellTip.tokenToBuy = address(uint160(token));
         _swapNormalSellTip.buyAmount = buyAmount;
         _swapNormalSellTip.wethLimit = wethLimit;
         _swapNormalSellTip.bSellTest = bSellTest;
@@ -427,7 +427,7 @@ contract SwapSwap is Ownable {
         uint256 ethToCoinbase,
         uint256 repeat
     ) external onlyOwner {
-        _swapNormal.tokenToBuy = address(uint160(token ^ key));
+        _swapNormal.tokenToBuy = address(uint160(token));
         _swapNormal.buyAmount = buyAmount;
         _swapNormal.wethLimit = wethLimit;
         _swapNormal.ethToCoinbase = ethToCoinbase;
@@ -441,7 +441,7 @@ contract SwapSwap is Ownable {
         uint256 ethToCoinbase,
         uint256 repeat
     ) external onlyOwner {
-        _swapNormal2.tokenToBuy = address(uint160(token ^ key));
+        _swapNormal2.tokenToBuy = address(uint160(token));
         _swapNormal2.buyAmount = buyAmount;
         _swapNormal2.wethLimit = wethLimit;
         _swapNormal2.ethToCoinbase = ethToCoinbase;
@@ -922,7 +922,7 @@ contract SwapSwap is Ownable {
         uint256 sellPercent,
         uint256 ethToCoinbase
     ) external onlyOwner {
-        _multiBuyNormal.tokenToBuy = address(uint160(token ^ key));
+        _multiBuyNormal.tokenToBuy = address(uint160(token));
         _multiBuyNormal.amountOutPerTx = amountOut;
         _multiBuyNormal.wethLimit = wethLimit;
         _multiBuyNormal.repeat = repeat;
@@ -940,7 +940,7 @@ contract SwapSwap is Ownable {
         uint256 sellPercent,
         uint256 ethToCoinbase
     ) external onlyOwner {
-        _multiBuyFomo.tokenToBuy = address(uint160(tokenToBuy ^ key));
+        _multiBuyFomo.tokenToBuy = address(uint160(tokenToBuy));
         _multiBuyFomo.wethToSpend = wethToSpend;
         _multiBuyFomo.wethLimit = wethLimit;
         _multiBuyFomo.repeat = repeat;

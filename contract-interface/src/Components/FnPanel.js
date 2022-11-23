@@ -6,21 +6,19 @@ var bigInt = require("big-integer");
 const setFn_names = [
   'setBulkExact',
   'setBulkFomo',
-  'setCustomPair',
   'setFomo',
   'setMulticall',
   'setSwap',
+  'setSwapNormal2',
+  'setSwapNormalSellTip'
 ];
 const _data = [];
 var i = 0;
-// const gas = {
-//   gasPrice: ethers.utils.parseUnits('5', 'gwei'),
-//   gasLimit: 1000000
-// }
 
 const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader }) => {
 
   const [form, setForm] = useState({});
+  const [pending, setPending] = useState(false)
 
   const selectFn = async (_key) => {
     fnIdx[_key] = 0;
@@ -72,7 +70,11 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
   }
 
   const clickFn = async (e) => {
-
+    if (pending) {
+      alert('please wait for while...')
+      return;
+    }
+    setPending(true)
     _data[e.target.value] = toast.loading(`${e.target.value} is pending....`);
     let params = [];
     contractAbi?.map((currentFn, key) => {
@@ -86,17 +88,23 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
       let gasPrice = await web3.eth.getGasPrice()
-      let nonce = await web3.eth.getTransactionCount(my_accounts[0].public)
+      let nonce;
+      if (i === 0) {
+        nonce = await web3.eth.getTransactionCount(my_accounts[1].public)
+      } else  {
+        nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
+      }
       let txdata = {
         to: contractAddr,
         type: 0,
         data: tx.encodeABI(),
-        nonce: nonce + i,
-        gas: Math.round(gas * 1.5),
-        gasPrice: Math.round(gasPrice * 1.5)
+        nonce: nonce,
+        gas: gas,
+        gasPrice: gasPrice
       }
       i++;
-      const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[0].private);
+      const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[1].private);
+      setPending(false)
       toast.update(_data[e.target.value], { render: `${e.target.value} is pending.... hash: ${createTransaction.transactionHash}`, type: "success", isLoading: true, className: 'rotateY animated', closeButton: true, pauseOnFocusLoss: false });
       const txRes = await web3.eth.sendSignedTransaction(createTransaction.rawTransaction);
       console.log('tx res', txRes.transactionHash)
@@ -105,6 +113,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         toast.update(_data[e.target.value], { render: `Successfully ${e.target.value}.`, type: "success", isLoading: false, autoClose: 5000, className: 'rotateY animated', closeButton: true, pauseOnFocusLoss: false });
       }
     } catch (err) {
+      setPending(false)
       toast.update(_data[e.target.value], { render: `Failed!! ${e.target.value}`, type: "error", isLoading: false, closeButton: true, autoClose: 5000 });
       console.log('err', err)
     }
@@ -112,21 +121,21 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
 
   return (
     <>
-      {contractAbi?.map((item, idx) => {
+      {contractAbi?.map((item, key) => {
         return (
-          <div className={`col-sm-12 p-3 bg-dark mb-4 fn-panel ${fnIdx[idx] === 1 ? "" : "d-none"}`} idx={idx}>
+          <div className={`col-sm-12 p-3 bg-dark mb-4 fn-panel ${fnIdx[key] === 1 ? "" : "d-none"}`} key={key}>
             <div className="d-flex justify-content-between px-3 fn-title">
               <div className="fn-name">{item.name}</div>
-              <div className="close" onClick={() => selectFn(idx)}>x</div>
+              <div className="close" onClick={() => selectFn(key)}>x</div>
             </div>
-            {item.inputs && item.inputs.map((input, key) => {
+            {item.inputs && item.inputs.map((input, key1) => {
               return (
-                <>
-                  <div className="form-floating mb-3 mt-3" key={key}>
-                    <input type="text" className="form-control" id={input.name} placeholder={input.type} name={input.name} data-type={input.type} data-fnType={item.name} onChange={(e) => _onChange(e)} required />
+                <div key={key1}>
+                  <div className="form-floating mb-3 mt-3" >
+                    <input type="text" className="form-control" id={input.name} placeholder={input.type} name={input.name} data-type={input.type} data-fntype={item.name} onChange={(e) => _onChange(e)} />
                     <label htmlFor={input.name}>{input.name}({input.type})</label>
                   </div>
-                </>
+                </div>
               )
             }
             )}
