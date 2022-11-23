@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { toast } from 'react-toastify';
-import { confirmAlert } from 'react-confirm-alert'; // Import
 import 'react-confirm-alert/src/react-confirm-alert.css'; // Import css
+import { toast } from 'react-toastify';
 import './Custom.css';
 
 var bigInt = require("big-integer");
@@ -73,32 +72,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     }
   }
 
-  const submit = () => {
-    confirmAlert({
-      title: 'Confirm to submit',
-      message: 'Are you sure to do this.',
-      buttons: [
-        {
-          label: 'Yes',
-          onClick: () => setBadTx(false)
-        },
-        {
-          label: 'No',
-          onClick: () => setBadTx(true)
-        }
-      ],
-      closeOnEscape: true,
-      closeOnClickOutside: true,
-      keyCodeForClose: [8, 32],
-      willUnmount: () => { },
-      afterClose: () => { },
-      onClickOutside: () => { },
-      onKeypress: () => { },
-      onKeypressEscape: () => { },
-      overlayClassName: "overlay-custom-class-name"
-    });
-  };
-
   const clickFn = async (e) => {
     if (pending) {
       alert('please wait for while...')
@@ -119,12 +92,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
       let _gasPrice = await web3.eth.getGasPrice()
-      let normal = await web3.eth.getTransactionCount(my_accounts[1].public)
       let nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
-      let earliest = await web3.eth.getTransactionCount(my_accounts[1].public, "earliest")
-      let latest = await web3.eth.getTransactionCount(my_accounts[1].public, "latest")
-      console.log(111, normal, nonce, earliest, latest)
-      console.log('hh', gas, gasLimit, gasPrice)
       if (gasLimit < gas) {
         let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take long time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice/10**9}, Gas Limit: ${gas}`)
         if (!confirm) {
@@ -146,7 +114,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         to: contractAddr,
         type: 0,
         data: tx.encodeABI(),
-        nonce: normal,
+        nonce: nonce,
         gas: gasLimit,
         gasPrice: gasPrice
       }
