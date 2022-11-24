@@ -20,7 +20,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
 
   const [form, setForm] = useState({});
   const [pending, setPending] = useState(false)
-  const [badTx, setBadTx] = useState(false)
 
   const selectFn = async (_key) => {
     fnIdx[_key] = 0;
@@ -45,17 +44,10 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         setForm(state => ({ ...state, [name]: _value }));
       } else {
         setForm(state => ({ ...state, [name]: value }));
-        // let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
-        // let values = [];
-        // for (var i = 0; i < arrayParams.length; i++) {
-        //   let _temp;
-        //   if (arrayParams[i].length == 42) _temp = bigInt(arrayParams[i].substr(2), 16)
-        //   else _temp = bigInt(arrayParams[i])
-
-        //   let _value = _key.value ^ _temp.value;
-        //   values.push(_value)
-        // }
-        // setForm(state => ({ ...state, [name]: values }));
+      }
+      if (param_type === 'bool') {
+        if (value === 'true') setForm(state => ({ ...state, [name]: true }));
+        else setForm(state => ({ ...state, [name]: false }));
       }
     } else {
       let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
@@ -66,6 +58,9 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
           values.push(arrayParams[i])
         }
         setForm(state => ({ ...state, [name]: values }));
+      } else if (param_type === 'bool') {
+        if (value === 'true') setForm(state => ({ ...state, [name]: true }));
+        else setForm(state => ({ ...state, [name]: false }));
       } else {
         setForm(state => ({ ...state, [name]: value }));
       }
@@ -87,14 +82,13 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
-    if (badTx) return
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
       let _gasPrice = await web3.eth.getGasPrice()
       let nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
-      if (gasLimit < gas) {
-        let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take long time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice/10**9}, Gas Limit: ${gas}`)
+      if (gasLimit < gas || gasPrice < _gasPrice) {
+        let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take long time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice / 10 ** 9}, Gas Limit: ${gas}`)
         if (!confirm) {
           setPending(false)
           toast.update(
@@ -116,7 +110,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         data: tx.encodeABI(),
         nonce: nonce,
         gas: gasLimit,
-        gasPrice: gasPrice
+        gasPrice: web3.utils.toWei(gasPrice.toString(), 'gwei')
       }
       const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[1].private);
       setPending(false)

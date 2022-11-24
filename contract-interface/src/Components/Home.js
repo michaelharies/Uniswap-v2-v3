@@ -24,6 +24,8 @@ const Home = () => {
   useEffect(() => {
     setContractAddr(localStorage.getItem('address'))
     setEncryptKey(localStorage.getItem('key'))
+    setGasPrice(localStorage.getItem("gasPrice"))
+    setGasLimit(localStorage.getItem("gasLimit"))
   }, [])
 
   useEffect(() => {
@@ -113,7 +115,7 @@ const Home = () => {
                 <div className="form-group row">
                   <label htmlFor="gas" className="col-sm-6 col-form-label">GAS PRICE</label>
                   <div className="col-sm-6">
-                    <input type="text" className="form-control" name="customGasPrice" value={gasPrice} onChange={(e) => { setGasPrice(e.target.value)}} id="gas" placeholder="20" />
+                    <input type="text" className="form-control" name="customGasPrice" value={gasPrice} onChange={(e) => { setGasPrice(e.target.value); localStorage.setItem("gasPrice", e.target.value)}} id="gas" placeholder="20" />
                   </div>
                 </div>
               </div>
@@ -121,7 +123,7 @@ const Home = () => {
                 <div className="form-group row">
                   <label htmlFor="gas" className="col-sm-6 col-form-label">GAS LIMIT</label>
                   <div className="col-sm-6">
-                    <input type="text" className="form-control" name="customGasPrice" value={gasLimit} onChange={(e) => {setGasLimit(eval(e.target.value)) }} id="gas" placeholder="20" />
+                    <input type="text" className="form-control" name="customGasPrice" value={gasLimit} onChange={(e) => {setGasLimit(eval(e.target.value)); localStorage.setItem("gasLimit", e.target.value) }} id="gas" placeholder="20" />
                   </div>
                 </div>
               </div>
