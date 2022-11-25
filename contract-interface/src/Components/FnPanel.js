@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import 'react-confirm-alert/src/react-confirm-alert.css'; // Import css
 import { toast } from 'react-toastify';
 import './Custom.css';
 
@@ -87,6 +86,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       let gas = await tx.estimateGas()
       let _gasPrice = await web3.eth.getGasPrice()
       let nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
+      console.log('---->', gas, gasLimit, _gasPrice, gasPrice)
       if (gasLimit < gas || gasPrice < _gasPrice) {
         let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take long time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice / 10 ** 9}, Gas Limit: ${gas}`)
         if (!confirm) {
