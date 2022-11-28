@@ -29,7 +29,7 @@ const Home = () => {
   }, [])
 
   useEffect(() => {
-    if (contractAddr !== "" && contractAddr.length > 40) {
+    if (contractAddr !== "") {
       const _contract = new web3.eth.Contract(ContractAbi, contractAddr, { from: my_accounts[1].public });
       setContract(_contract)
       getAbi(ContractAbi)
