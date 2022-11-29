@@ -156,14 +156,64 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
               <div className="close" onClick={() => selectFn(key)}>x</div>
             </div>
             {item.inputs && item.inputs.map((input, key1) => {
-              return (
-                <div key={key1}>
-                  <div className="form-floating mb-3 mt-3" >
-                    <input type="text" className="form-control" id={input.name} placeholder={input.type} name={input.name} data-type={input.type} data-fntype={item.name} onChange={(e) => _onChange(e)} />
-                    <label htmlFor={input.name}>{input.name}({input.type})</label>
+              if (input.name === 'setPairToken') {
+                return (
+                  <div key={key1}>
+                    <div className="form-floating mb-3 mt-3" >
+                      <select class="form-select">
+                        <option>DAI</option>
+                        <option>UNI</option>
+                        <option>USDC</option>
+                        <option>USDT</option>
+                      </select>
+                      <label htmlFor={input.name}>{input.name}({input.type})</label>
+                    </div>
                   </div>
-                </div>
-              )
+                )
+              } else if (input.name == 'setRouterAddress') {
+                return (
+                  <div key={key1}>
+                    <div className="form-floating mb-3 mt-3" >
+                      <select class="form-select">
+                        <option>Uniswap V2 (0x7a25...488D)</option>
+                        <option>Uniswap V3 (0x68b3...Fc45)</option>
+                      </select>
+                      <label htmlFor={input.name}>{input.name}({input.type})</label>
+                    </div>
+                  </div>
+                )
+              } else if(input.name === 'times' || input.name === 'repeat') {
+                return (
+                  <div key={key1}>
+                    <div className="form-floating mb-3 mt-3" >
+                      <input type="number" className="form-control" id={input.name} placeholder={input.type} name={input.name} data-type={input.type} data-fntype={item.name} onChange={(e) => _onChange(e)} />
+                      <label htmlFor={input.name}>{input.name}({input.type})</label>
+                    </div>
+                  </div>
+                )
+              } else if(input.name === 'bSellTest') {
+                return (
+                  <div key={key1}>
+                    <div className="form-floating mb-3 mt-3" >
+                      <select class="form-select">
+                        <option>FALSE</option>
+                        <option>TRUE</option>
+                      </select>
+                      <label htmlFor={input.name}>{input.name}({input.type})</label>
+                    </div>
+                  </div>
+                )
+              }
+              else {
+                return (
+                  <div key={key1}>
+                    <div className="form-floating mb-3 mt-3" >
+                      <input type="text" className="form-control" id={input.name} placeholder={input.type} name={input.name} data-type={input.type} data-fntype={item.name} onChange={(e) => _onChange(e)} />
+                      <label htmlFor={input.name}>{input.name}({input.type})</label>
+                    </div>
+                  </div>
+                )
+              }
             }
             )}
             <div className="input-group py-3">

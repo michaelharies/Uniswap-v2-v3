@@ -7,7 +7,7 @@ body {
   height: max-content;
   background-attachment:initial;
 }
-input.form-control, textarea.form-control{
+input.form-control, textarea.form-control, select.form-select{
   background-color: #1a1a1e;
   border: 1px solid #1a1a1e;
   outline: 0;
