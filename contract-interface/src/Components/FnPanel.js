@@ -17,7 +17,11 @@ const _data = [];
 
 const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader, gasPrice, gasLimit }) => {
 
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState({
+    setPairToken: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+    setRouterAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    bSellTest: "false"
+  });
   const [pending, setPending] = useState(false)
 
   const selectFn = async (_key) => {
@@ -30,39 +34,31 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     let value = e.target.value
     let param_type = e.target.dataset.type
     let fn_type = e.target.dataset.fntype
-
+    console.log('asdf', name, 'value', value, param_type, fn_type)
+ 
     if (setFn_names.includes(fn_type)) {
       if (encryptKey === '') {
         alert('please input encrypt key');
       }
-      let _key;
-      if (encryptKey.substr(0, 2) == '0x') _key = bigInt(encryptKey.substr(2), 16)
-      else _key = bigInt(encryptKey)
+      let _key = bigInt(encryptKey.substr(2), 16)
       if (name === 'token' || name === 'tokenToBuy') {
         let _value = _key.value ^ bigInt(value.substr(2), 16).value;
         setForm(state => ({ ...state, [name]: _value }));
-      } else {
-        setForm(state => ({ ...state, [name]: value }));
+      } 
+    } 
+    let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
+    if (param_type.substr(-2) === '[]') {
+      let values = [];
+      for (var i = 0; i < arrayParams.length; i++) {
+        values.push(arrayParams[i])
       }
-      if (param_type === 'bool') {
-        if (value === 'true') setForm(state => ({ ...state, [name]: true }));
-        else setForm(state => ({ ...state, [name]: false }));
-      }
+      console.log('values', values)
+      setForm(state => ({ ...state, [name]: values }));
+    } else if (param_type === 'bool') {
+      if (value === 'true') setForm(state => ({ ...state, [name]: true }));
+      else setForm(state => ({ ...state, [name]: false }));
     } else {
-      let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
-      if (param_type.substr(-2) === '[]') {
-
-        let values = [];
-        for (var i = 0; i < arrayParams.length; i++) {
-          values.push(arrayParams[i])
-        }
-        setForm(state => ({ ...state, [name]: values }));
-      } else if (param_type === 'bool') {
-        if (value === 'true') setForm(state => ({ ...state, [name]: true }));
-        else setForm(state => ({ ...state, [name]: false }));
-      } else {
-        setForm(state => ({ ...state, [name]: value }));
-      }
+      setForm(state => ({ ...state, [name]: value }));
     }
   }
 
@@ -81,12 +77,12 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
+    console.log('params', params)
     try {
       const tx = contract.methods[e.target.name](...params);
       let gas = await tx.estimateGas()
       let _gasPrice = await web3.eth.getGasPrice()
       let nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
-      console.log('---->', gas, gasLimit, _gasPrice, gasPrice)
       if (gasLimit < gas || gasPrice < _gasPrice) {
         let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take long time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice / 10 ** 9}, Gas Limit: ${gas}`)
         if (!confirm) {
@@ -160,11 +156,11 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
                 return (
                   <div key={key1}>
                     <div className="form-floating mb-3 mt-3" >
-                      <select class="form-select">
-                        <option>DAI</option>
-                        <option>UNI</option>
-                        <option>USDC</option>
-                        <option>USDT</option>
+                      <select className="form-select" id={input.name} name={input.name} data-type={input.type} data-fntype={item.name} onChange={(e) => _onChange(e)}>
+                        <option value="0x6B175474E89094C44Da98b954EedeAC495271d0F">DAI</option>
+                        <option value="0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984">UNI</option>
+                        <option value="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48">USDC</option>
+                        <option value='0xdAC17F958D2ee523a2206206994597C13D831ec7'>USDT</option>
                       </select>
                       <label htmlFor={input.name}>{input.name}({input.type})</label>
                     </div>
@@ -174,9 +170,9 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
                 return (
                   <div key={key1}>
                     <div className="form-floating mb-3 mt-3" >
-                      <select class="form-select">
-                        <option>Uniswap V2 (0x7a25...488D)</option>
-                        <option>Uniswap V3 (0x68b3...Fc45)</option>
+                      <select className="form-select" id={input.name} name={input.name} data-type={input.type} data-fntype={item.name} onChange={(e) => _onChange(e)}>
+                        <option value="0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D">Uniswap V2 (0x7a25...488D)</option>
+                        <option value="0xE592427A0AEce92De3Edee1F18E0157C05861564">Uniswap V3 (0xE592...1564)</option>
                       </select>
                       <label htmlFor={input.name}>{input.name}({input.type})</label>
                     </div>
@@ -195,9 +191,9 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
                 return (
                   <div key={key1}>
                     <div className="form-floating mb-3 mt-3" >
-                      <select class="form-select">
-                        <option>FALSE</option>
-                        <option>TRUE</option>
+                      <select className="form-select" id={input.name} name={input.name} data-type={input.type} data-fntype={item.name} onChange={(e) => _onChange(e)}>
+                        <option value="false">FALSE</option>
+                        <option value="true">TRUE</option>
                       </select>
                       <label htmlFor={input.name}>{input.name}({input.type})</label>
                     </div>

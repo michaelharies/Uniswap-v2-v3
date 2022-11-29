@@ -641,19 +641,6 @@
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newAddr",
-				"type": "address"
-			}
-		],
-		"name": "setrouterAddress",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [],
 		"name": "swap",
 		"outputs": [],
