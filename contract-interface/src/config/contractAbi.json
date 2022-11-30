@@ -134,6 +134,16 @@
 				"type": "uint256"
 			},
 			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
@@ -547,6 +557,16 @@
 				"internalType": "uint256",
 				"name": "wethLimit",
 				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "setPairToken",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "setRouterAddress",
+				"type": "address"
 			},
 			{
 				"internalType": "uint256",

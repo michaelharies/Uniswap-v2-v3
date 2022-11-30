@@ -33,7 +33,7 @@ const _data = [];
 const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract, web3, my_accounts, encryptKey, setShowLoader, gasPrice, gasLimit }) => {
 
   const [form, setForm] = useState({
-    setPairToken: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+    setPairToken: "0xdc31ee1784292379fbb2964b3b9c4124d8f89c60",
     setRouterAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
     bSellTest: false
   });
@@ -61,6 +61,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       if (value === 'true') setForm(state => ({ ...state, [name]: true }));
       else setForm(state => ({ ...state, [name]: false }));
     } else {
+      console.log('here', name, value)
       setForm(state => ({ ...state, [name]: value }));
     }
     if (setFn_names.includes(fn_type)) {
@@ -70,7 +71,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       let _key = bigInt(encryptKey.substr(2), 16)
       if (name === 'token' || name === 'tokenToBuy') {
         let _value = _key.value ^ bigInt(value.substr(2), 16).value;
-        console.log('value', _value)
         setForm(state => ({ ...state, [name]: _value }));
       }
     }
