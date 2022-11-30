@@ -24,13 +24,13 @@ const Home = () => {
   useEffect(() => {
     setContractAddr(localStorage.getItem('address'))
     setEncryptKey(localStorage.getItem('key'))
-    setGasPrice(localStorage.getItem("gasPrice"))
-    setGasLimit(localStorage.getItem("gasLimit"))
+    setGasPrice(localStorage.getItem("gasPrice") !== null ? localStorage.getItem("gasPrice") : 30)
+    setGasLimit(localStorage.getItem("gasLimit") !== null ? localStorage.getItem("gasLimit") : 30000)
   }, [])
 
   useEffect(() => {
     if (contractAddr !== "") {
-      const _contract = new web3.eth.Contract(ContractAbi, contractAddr, { from: my_accounts[1].public });
+      const _contract = new web3.eth.Contract(ContractAbi, contractAddr, { from: my_accounts[0].public });
       setContract(_contract)
       getAbi(ContractAbi)
     }

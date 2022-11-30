@@ -149,19 +149,6 @@
 	},
 	{
 		"inputs": [],
-		"name": "getMiddleCustomToken",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "getMultiBuyFomo",
 		"outputs": [
 			{
@@ -183,6 +170,21 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			},
+			{
+				"internalType": "address[]",
+				"name": "",
+				"type": "address[]"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
 			},
 			{
 				"internalType": "bool",
@@ -228,6 +230,21 @@
 				"type": "uint256"
 			},
 			{
+				"internalType": "address[]",
+				"name": "",
+				"type": "address[]"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
 				"internalType": "bool",
 				"name": "",
 				"type": "bool"
@@ -241,19 +258,6 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getRecipients",
-		"outputs": [
-			{
-				"internalType": "address[]",
-				"name": "",
-				"type": "address[]"
 			}
 		],
 		"stateMutability": "view",
@@ -277,6 +281,16 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
 			},
 			{
 				"internalType": "uint256",
@@ -325,6 +339,16 @@
 				"type": "uint256"
 			},
 			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
@@ -366,13 +390,6 @@
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "removeMiddleCustomToken",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -402,7 +419,7 @@
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "token",
+				"name": "tokenToBuy",
 				"type": "uint256"
 			},
 			{
@@ -417,8 +434,23 @@
 			},
 			{
 				"internalType": "uint256",
-				"name": "repeat",
+				"name": "times",
 				"type": "uint256"
+			},
+			{
+				"internalType": "address[]",
+				"name": "recipients",
+				"type": "address[]"
+			},
+			{
+				"internalType": "address",
+				"name": "setPairToken",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "setRouterAddress",
+				"type": "address"
 			},
 			{
 				"internalType": "bool",
@@ -460,8 +492,23 @@
 			},
 			{
 				"internalType": "uint256",
-				"name": "repeat",
+				"name": "times",
 				"type": "uint256"
+			},
+			{
+				"internalType": "address[]",
+				"name": "recipients",
+				"type": "address[]"
+			},
+			{
+				"internalType": "address",
+				"name": "setPairToken",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "setRouterAddress",
+				"type": "address"
 			},
 			{
 				"internalType": "bool",
@@ -480,19 +527,6 @@
 			}
 		],
 		"name": "setBulkFomo",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "tokenAddr",
-				"type": "address"
-			}
-		],
-		"name": "setCustomPair",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -548,6 +582,16 @@
 				"type": "uint256"
 			},
 			{
+				"internalType": "address",
+				"name": "setPairToken",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "setRouterAddress",
+				"type": "address"
+			},
+			{
 				"internalType": "uint256",
 				"name": "ethToCoinbase",
 				"type": "uint256"
@@ -559,19 +603,6 @@
 			}
 		],
 		"name": "setMulticall",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address[]",
-				"name": "recipients",
-				"type": "address[]"
-			}
-		],
-		"name": "setRecipients",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -594,6 +625,16 @@
 				"type": "uint256"
 			},
 			{
+				"internalType": "address",
+				"name": "setPairToken",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "setRouterAddress",
+				"type": "address"
+			},
+			{
 				"internalType": "uint256",
 				"name": "ethToCoinbase",
 				"type": "uint256"
@@ -605,19 +646,6 @@
 			}
 		],
 		"name": "setSwap",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newAddr",
-				"type": "address"
-			}
-		],
-		"name": "setrouterAddress",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"

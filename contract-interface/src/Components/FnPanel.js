@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import './Custom.css';
+import { ethers } from 'ethers'
 
 var bigInt = require("big-integer");
 
@@ -20,7 +21,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
   const [form, setForm] = useState({
     setPairToken: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
     setRouterAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-    bSellTest: "false"
+    bSellTest: false
   });
   const [pending, setPending] = useState(false)
 
@@ -34,8 +35,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     let value = e.target.value
     let param_type = e.target.dataset.type
     let fn_type = e.target.dataset.fntype
-    console.log('asdf', name, 'value', value, param_type, fn_type)
- 
+
     if (setFn_names.includes(fn_type)) {
       if (encryptKey === '') {
         alert('please input encrypt key');
@@ -44,15 +44,14 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       if (name === 'token' || name === 'tokenToBuy') {
         let _value = _key.value ^ bigInt(value.substr(2), 16).value;
         setForm(state => ({ ...state, [name]: _value }));
-      } 
-    } 
+      }
+    }
     let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
     if (param_type.substr(-2) === '[]') {
       let values = [];
       for (var i = 0; i < arrayParams.length; i++) {
         values.push(arrayParams[i])
       }
-      console.log('values', values)
       setForm(state => ({ ...state, [name]: values }));
     } else if (param_type === 'bool') {
       if (value === 'true') setForm(state => ({ ...state, [name]: true }));
@@ -80,11 +79,11 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     console.log('params', params)
     try {
       const tx = contract.methods[e.target.name](...params);
-      let gas = await tx.estimateGas()
+      let _gasLimit = await tx.estimateGas()
       let _gasPrice = await web3.eth.getGasPrice()
-      let nonce = await web3.eth.getTransactionCount(my_accounts[1].public, "pending")
-      if (gasLimit < gas || gasPrice < _gasPrice) {
-        let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take long time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice / 10 ** 9}, Gas Limit: ${gas}`)
+      let nonce = await web3.eth.getTransactionCount(my_accounts[0].public, "pending")
+      if (gasLimit < _gasLimit || gasPrice < _gasPrice / 10 ** 9) {
+        let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take some time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice / 10 ** 9}, Gas Limit: ${_gasLimit}`)
         if (!confirm) {
           setPending(false)
           toast.update(
@@ -107,8 +106,10 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         nonce: nonce,
         gas: gasLimit,
         gasPrice: web3.utils.toWei(gasPrice.toString(), 'gwei')
+        // gas: ethers.utils.hexlify(gasLimit * 1),
+        // gasPrice: ethers.utils.hexlify(Math.round(_gasPrice * 1.3))
       }
-      const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[1].private);
+      const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[0].private);
       setPending(false)
       toast.update(
         _data[e.target.value],
@@ -178,7 +179,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
                     </div>
                   </div>
                 )
-              } else if(input.name === 'times' || input.name === 'repeat') {
+              } else if (input.name === 'times' || input.name === 'repeat') {
                 return (
                   <div key={key1}>
                     <div className="form-floating mb-3 mt-3" >
@@ -187,7 +188,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
                     </div>
                   </div>
                 )
-              } else if(input.name === 'bSellTest') {
+              } else if (input.name === 'bSellTest') {
                 return (
                   <div key={key1}>
                     <div className="form-floating mb-3 mt-3" >
