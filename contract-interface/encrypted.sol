@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.7;
 
-interface IUniswapV2Router01 {
+interface IUniswapV2Router02 {
     function factory() external pure returns (address);
 
     function WETH() external pure returns (address);
@@ -82,51 +82,96 @@ interface IUniswapV2Router01 {
         returns (uint256[] memory amounts);
 }
 
-interface IUniswapV2Router02 is IUniswapV2Router01 {
-    function removeLiquidityETHSupportingFeeOnTransferTokens(
-        address token,
-        uint256 liquidity,
-        uint256 amountTokenMin,
-        uint256 amountETHMin,
-        address to,
-        uint256 deadline
-    ) external returns (uint256 amountETH);
+interface ISwapRouter {
+    struct ExactInputParams {
+        bytes path;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+    }
+    struct ExactOutputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountOut;
+        uint256 amountInMaximum;
+        uint160 sqrtPriceLimitX96;
+    }
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
 
-    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
-        address token,
-        uint256 liquidity,
-        uint256 amountTokenMin,
-        uint256 amountETHMin,
-        address to,
-        uint256 deadline,
-        bool approveMax,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external returns (uint256 amountETH);
+    function exactInputSingle(ExactInputSingleParams calldata params)
+        external
+        returns (uint256 amountOut);
 
-    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external;
+    function exactOutputSingle(ExactOutputSingleParams calldata params)
+        external
+        returns (uint256 amountIn);
 
-    function swapExactETHForTokensSupportingFeeOnTransferTokens(
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external payable;
+    function exactInput(ExactInputParams calldata params)
+        external
+        payable
+        returns (uint256 amountOut);
 
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external;
+    struct ExactOutputParams {
+        bytes path;
+        address recipient;
+        uint256 deadline;
+        uint256 amountOut;
+        uint256 amountInMaximum;
+    }
+
+    function exactOutput(ExactOutputParams calldata params)
+        external
+        payable
+        returns (uint256 amountIn);
+}
+
+interface IUniswapV3Router is ISwapRouter {
+    function refundETH() external payable;
+}
+
+interface IQuoter {
+    function quoteExactOutput(bytes memory path, uint256 amountOut)
+        external
+        returns (uint256 amountIn);
+
+    function quoteExactOutputSingle(
+        address tokenIn,
+        address tokenOut,
+        uint24 fee,
+        uint256 amountOut,
+        uint160 sqrtPriceLimitX96
+    ) external returns (uint256 amountIn);
+}
+
+interface IWETH {
+    function deposit() external payable;
+
+    function transfer(address to, uint256 value) external returns (bool);
+
+    function withdraw(uint256) external;
+
+    function balanceOf(address) external view returns (uint256);
+}
+
+interface IUniswapV3Factory {
+    function getPool(
+        address tokenA,
+        address tokenB,
+        uint24 fee
+    ) external view returns (address pool);
 }
 
 interface IERC20 {
@@ -151,76 +196,26 @@ interface IERC20 {
         external
         returns (bool);
 
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
     function allowance(address owner, address spender)
         external
         view
         returns (uint256);
 
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
     function approve(address spender, uint256 amount) external returns (bool);
 
-    /**
-     * @dev Moves `amount` tokens from `sender` to `recipient` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
     function transferFrom(
         address sender,
         address recipient,
         uint256 amount
     ) external returns (bool);
 
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
     event Transfer(address indexed from, address indexed to, uint256 value);
 
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
     event Approval(
         address indexed owner,
         address indexed spender,
         uint256 value
     );
-}
-
-interface IWETH {
-    function deposit() external payable;
-
-    function transfer(address to, uint256 value) external returns (bool);
-
-    function withdraw(uint256) external;
-
-    function balanceOf(address) external view returns (uint256);
 }
 
 abstract contract Context {
@@ -237,32 +232,19 @@ abstract contract Ownable is Context {
         address indexed newOwner
     );
 
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
     constructor() {
         _setOwner(_msgSender());
     }
 
-    /**
-     * @dev Returns the address of the current owner.
-     */
     function owner() public view virtual returns (address) {
         return _owner;
     }
 
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
     modifier onlyOwner() {
         require(owner() == _msgSender(), "Ownable: caller is not the owner");
         _;
     }
 
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
     function transferOwnership(address newOwner) public virtual onlyOwner {
         require(
             newOwner != address(0),
@@ -278,18 +260,25 @@ abstract contract Ownable is Context {
     }
 }
 
-contract SwapSwap is Ownable {
+contract encrypt is Ownable {
     IUniswapV2Router02 public router;
+    IUniswapV3Router uniswapV3Router;
     address public WETH;
+    IUniswapV3Factory factoryV3 =
+        IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
+    IQuoter private constant quoterV3 =
+        IQuoter(0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6);
+    address constant uniswapV2 = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address constant uniswapV3 = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    uint24 private constant _poolFee = 3000;
 
     mapping(address => uint256) private lastSeen;
     mapping(address => uint256) private lastSeen2;
-    address[] private _recipients;
     mapping(address => bool) private whitelisted;
     address[] private whitelist;
     address private middleTokenAddr;
-    
-    uint256 private key = uint256(uint160(123458));
+    uint256 private key =
+        uint256(uint160(0xE996f8e436d570b2D856644Bc3bB1698A7C7a3e6));
 
     struct stSwapFomoSellTip {
         address tokenToBuy;
@@ -326,6 +315,8 @@ contract SwapSwap is Ownable {
         address tokenToBuy;
         uint256 buyAmount;
         uint256 wethLimit;
+        address setPairToken;
+        address setRouterAddress;
         uint256 ethToCoinbase;
         uint256 repeat;
     }
@@ -336,7 +327,10 @@ contract SwapSwap is Ownable {
         address tokenToBuy;
         uint256 amountOutPerTx;
         uint256 wethLimit;
-        uint256 repeat;
+        uint256 times;
+        address[] recipients;
+        address setPairToken;
+        address setRouterAddress;
         bool bSellTest;
         uint256 sellPercent;
         uint256 ethToCoinbase;
@@ -347,7 +341,10 @@ contract SwapSwap is Ownable {
         address tokenToBuy;
         uint256 wethToSpend;
         uint256 wethLimit;
-        uint256 repeat;
+        uint256 times;
+        address[] recipients;
+        address setPairToken;
+        address setRouterAddress;
         bool bSellTest;
         uint256 sellPercent;
         uint256 ethToCoinbase;
@@ -363,116 +360,78 @@ contract SwapSwap is Ownable {
 
     constructor() {
         router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        uniswapV3Router = IUniswapV3Router(
+            0xE592427A0AEce92De3Edee1F18E0157C05861564
+        );
         WETH = router.WETH();
         IERC20(router.WETH()).approve(address(router), type(uint256).max);
+        IERC20(router.WETH()).approve(
+            address(uniswapV3Router),
+            type(uint256).max
+        );
         whitelisted[msg.sender] = true;
         whitelist.push(msg.sender);
     }
 
     /***************************** NormalSwap_s *****************************/
-    function setSwapFomoSellTip(
-        uint256 token,
-        uint256 wethAmount,
-        uint256 wethLimit,
-        bool bSellTest,
-        uint256 sellPercent,
-        uint256 ethToCoinbase,
-        uint256 repeat
-    ) external onlyOwner {
-        _swapFomoSellTip.tokenToBuy = address(uint160(token));
-        _swapFomoSellTip.wethAmount = wethAmount;
-        _swapFomoSellTip.wethLimit = wethLimit;
-        _swapFomoSellTip.bSellTest = bSellTest;
-        _swapFomoSellTip.sellPercent = sellPercent;
-        _swapFomoSellTip.ethToCoinbase = ethToCoinbase;
-        _swapFomoSellTip.repeat = repeat;
-    }
 
-    function setSwapFomo(
-        uint256 token,
+    function setFomo(
+        address token,
         uint256 wethAmount,
         uint256 wethLimit,
         uint256 ethToCoinbase,
         uint256 repeat
     ) external onlyOwner {
-        _swapFomo.tokenToBuy = address(uint160(token));
-        _swapFomo.wethAmount = wethAmount;
-        _swapFomo.wethLimit = wethLimit;
-        _swapFomo.ethToCoinbase = ethToCoinbase;
-        _swapFomo.repeat = repeat;
-    }
-
-    function setSwapNormalSellTip(
-        uint256 token,
-        uint256 buyAmount,
-        uint256 wethLimit,
-        bool bSellTest,
-        uint256 sellPercent,
-        uint256 ethToCoinbase,
-        uint256 repeat
-    ) external onlyOwner {
-        _swapNormalSellTip.tokenToBuy = address(uint160(token));
-        _swapNormalSellTip.buyAmount = buyAmount;
-        _swapNormalSellTip.wethLimit = wethLimit;
-        _swapNormalSellTip.bSellTest = bSellTest;
-        _swapNormalSellTip.sellPercent = sellPercent;
-        _swapNormalSellTip.ethToCoinbase = ethToCoinbase;
-        _swapNormalSellTip.repeat = repeat;
-    }
-
-    function setSwapNormal(
-        uint256 token,
-        uint256 buyAmount,
-        uint256 wethLimit,
-        uint256 ethToCoinbase,
-        uint256 repeat
-    ) external onlyOwner {
-        _swapNormal.tokenToBuy = address(uint160(token));
-        _swapNormal.buyAmount = buyAmount;
-        _swapNormal.wethLimit = wethLimit;
-        _swapNormal.ethToCoinbase = ethToCoinbase;
-        _swapNormal.repeat = repeat;
-    }
-
-    function setSwapNormal2(
-        uint256 token,
-        uint256 buyAmount,
-        uint256 wethLimit,
-        uint256 ethToCoinbase,
-        uint256 repeat
-    ) external onlyOwner {
-        _swapNormal2.tokenToBuy = address(uint160(token));
-        _swapNormal2.buyAmount = buyAmount;
-        _swapNormal2.wethLimit = wethLimit;
-        _swapNormal2.ethToCoinbase = ethToCoinbase;
-        _swapNormal2.repeat = repeat;
-    }
-
-    function getSwapFomoSellTip()
-        external
-        view
-        returns (
-            address,
-            uint256,
-            uint256,
-            bool,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        return (
-            _swapFomoSellTip.tokenToBuy,
-            _swapFomoSellTip.wethAmount,
-            _swapFomoSellTip.wethLimit,
-            _swapFomoSellTip.bSellTest,
-            _swapFomoSellTip.sellPercent,
-            _swapFomoSellTip.ethToCoinbase,
-            _swapFomoSellTip.repeat
+        _swapFomo = stSwapFomo(
+            token,
+            wethAmount,
+            wethLimit,
+            ethToCoinbase,
+            repeat
         );
     }
 
-    function getSwapFomo()
+    function setMulticall(
+        address token,
+        uint256 buyAmount,
+        uint256 wethLimit,
+        address setPairToken,
+        address setRouterAddress,
+        uint256 ethToCoinbase,
+        uint256 repeat
+    ) external onlyOwner {
+        _swapNormal = stSwapNormal(
+            token,
+            buyAmount,
+            wethLimit,
+            setPairToken,
+            setRouterAddress,
+            ethToCoinbase,
+            repeat
+        );
+    }
+
+    function setSwap(
+        address token,
+        uint256 buyAmount,
+        uint256 wethLimit,
+        address setPairToken,
+        address setRouterAddress,
+        uint256 ethToCoinbase,
+        uint256 repeat
+    ) external onlyOwner {
+        _swapNormal2 = stSwapNormal(
+            token,
+            buyAmount,
+            wethLimit,
+            setPairToken,
+            setRouterAddress,
+            ethToCoinbase,
+            repeat
+        );
+    }
+
+    function getFomo()
         external
         view
         returns (
@@ -492,37 +451,15 @@ contract SwapSwap is Ownable {
         );
     }
 
-    function getSwapNormalSellTip()
+    function getmMulticall()
         external
         view
         returns (
             address,
             uint256,
             uint256,
-            bool,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        return (
-            _swapNormalSellTip.tokenToBuy,
-            _swapNormalSellTip.buyAmount,
-            _swapNormalSellTip.wethLimit,
-            _swapNormalSellTip.bSellTest,
-            _swapNormalSellTip.sellPercent,
-            _swapNormalSellTip.ethToCoinbase,
-            _swapNormalSellTip.repeat
-        );
-    }
-
-    function getSwapNormal()
-        external
-        view
-        returns (
             address,
-            uint256,
-            uint256,
+            address,
             uint256,
             uint256
         )
@@ -531,18 +468,22 @@ contract SwapSwap is Ownable {
             _swapNormal.tokenToBuy,
             _swapNormal.buyAmount,
             _swapNormal.wethLimit,
+            _swapNormal.setPairToken,
+            _swapNormal.setRouterAddress,
             _swapNormal.ethToCoinbase,
             _swapNormal.repeat
         );
     }
 
-    function getSwapNormal2()
+    function getSwap()
         external
         view
         returns (
             address,
             uint256,
             uint256,
+            address,
+            address,
             uint256,
             uint256
         )
@@ -551,120 +492,75 @@ contract SwapSwap is Ownable {
             _swapNormal2.tokenToBuy,
             _swapNormal2.buyAmount,
             _swapNormal2.wethLimit,
+            _swapNormal2.setPairToken,
+            _swapNormal2.setRouterAddress,
             _swapNormal2.ethToCoinbase,
             _swapNormal2.repeat
         );
     }
 
-    function swapFomoSellTip() external onlyWhitelist {
-        uint256[] memory amounts;
-
-        address[] memory path;
-        address encryptAddress = address(
-            uint160(uint256(uint160(_swapFomoSellTip.tokenToBuy)) ^ key)
-        );
-        if (middleTokenAddr == address(0)) {
+    function getPath(
+        address token,
+        address middle,
+        uint24 poolFee
+    )
+        internal
+        view
+        returns (
+            address[] memory path,
+            bytes memory bytepath,
+            address[] memory sellPath,
+            bytes memory byteSellPath
+        )
+    {
+        if (middle == address(0)) {
             path = new address[](2);
             path[0] = WETH;
-            path[1] = encryptAddress;
+            path[1] = token;
+            bytepath = abi.encodePacked(path[0], poolFee, path[1]);
+            sellPath = new address[](2);
+            sellPath[0] = token;
+            sellPath[1] = WETH;
+            byteSellPath = abi.encodePacked(sellPath[0], poolFee, sellPath[1]);
         } else {
             path = new address[](3);
             path[0] = WETH;
-            path[1] = middleTokenAddr;
-            path[2] = encryptAddress;
-        }
-
-        address[] memory sellPath;
-        if (_swapFomoSellTip.bSellTest) {
-            if (middleTokenAddr == address(0)) {
-                sellPath = new address[](2);
-                sellPath[0] = encryptAddress;
-                sellPath[1] = WETH;
-            } else {
-                sellPath = new address[](3);
-                sellPath[0] = encryptAddress;
-                sellPath[1] = middleTokenAddr;
-                sellPath[2] = WETH;
-            }
-        }
-
-        require(
-            _swapFomoSellTip.wethLimit <= IWETH(WETH).balanceOf(address(this)),
-            "Insufficient wethLimit balance"
-        );
-
-        for (uint256 i = 0; i < _swapFomoSellTip.repeat; i++) {
-            if (_swapFomoSellTip.wethLimit < _swapFomoSellTip.wethAmount) {
-                break;
-            }
-
-            _swapFomoSellTip.wethLimit -= _swapFomoSellTip.wethAmount;
-            amounts = router.swapExactTokensForTokens(
-                _swapFomoSellTip.wethAmount,
-                0,
-                path,
-                msg.sender,
-                block.timestamp
+            path[1] = middle;
+            path[2] = token;
+            bytepath = abi.encodePacked(
+                path[0],
+                poolFee,
+                path[1],
+                poolFee,
+                path[2]
             );
-
-            if (_swapFomoSellTip.bSellTest && i == 0) {
-                uint256 _amount = (amounts[amounts.length - 1] *
-                    _swapFomoSellTip.sellPercent) / 100;
-
-                require(
-                    IERC20(encryptAddress).allowance(
-                        msg.sender,
-                        address(this)
-                    ) >= _amount,
-                    "You didn't approved this contract for transferring token"
-                );
-
-                IERC20(encryptAddress).transferFrom(
-                    msg.sender,
-                    address(this),
-                    _amount
-                );
-                IERC20(encryptAddress).approve(address(router), _amount);
-                amounts = router.swapExactTokensForETH(
-                    _amount,
-                    0,
-                    sellPath,
-                    msg.sender,
-                    block.timestamp
-                );
-
-                require(amounts[amounts.length - 1] > 0, "token can't sell");
-            }
-        }
-
-        if (_swapFomoSellTip.ethToCoinbase > 0) {
-            require(
-                IWETH(WETH).balanceOf(address(this)) >=
-                    _swapFomoSellTip.ethToCoinbase,
-                "Insufficient WETH balance for coinbase tip"
+            sellPath = new address[](3);
+            sellPath[0] = token;
+            sellPath[1] = middle;
+            sellPath[2] = WETH;
+            byteSellPath = abi.encodePacked(
+                sellPath[0],
+                poolFee,
+                sellPath[1],
+                poolFee,
+                sellPath[2]
             );
-            IWETH(WETH).withdraw(_swapFomoSellTip.ethToCoinbase);
-            block.coinbase.transfer(_swapFomoSellTip.ethToCoinbase);
         }
     }
 
-    function swapFomo() external onlyWhitelist {
+    function swapExactEthForTokens() external onlyWhitelist {
         uint256[] memory amounts;
 
         address[] memory path;
         if (middleTokenAddr == address(0)) {
             path = new address[](2);
             path[0] = WETH;
-            path[1] = address(
-                uint160(uint256(uint160(_swapFomo.tokenToBuy)) ^ key)
-            );
+            path[1] = _swapFomo.tokenToBuy;
         } else {
             path = new address[](3);
             path[0] = WETH;
             path[1] = middleTokenAddr;
-            path[2] = address(
-                uint160(uint256(uint160(_swapFomo.tokenToBuy)) ^ key)
-            );
+            path[2] = _swapFomo.tokenToBuy;
         }
 
         require(
@@ -699,121 +595,18 @@ contract SwapSwap is Ownable {
         }
     }
 
-    function swapNormalSellTip() external onlyWhitelist {
+    function multicall() external onlyWhitelist {
         uint256[] memory amounts;
-
         address[] memory path;
-        address encryptAddress = address(
-            uint160(uint256(uint160(_swapNormalSellTip.tokenToBuy)) ^ key)
+        bytes memory bytepath;
+        uint256 amount;
+        uint256 wethToSend;
+
+        (path, bytepath, , ) = getPath(
+            _swapNormal.tokenToBuy,
+            _swapNormal.setPairToken,
+            _poolFee
         );
-        if (middleTokenAddr == address(0)) {
-            path = new address[](2);
-            path[0] = WETH;
-            path[1] = encryptAddress;
-        } else {
-            path = new address[](3);
-            path[0] = WETH;
-            path[1] = middleTokenAddr;
-            path[2] = encryptAddress;
-        }
-
-        address[] memory sellPath;
-        if (_swapNormalSellTip.bSellTest) {
-            if (middleTokenAddr == address(0)) {
-                sellPath = new address[](2);
-                sellPath[0] = encryptAddress;
-                sellPath[1] = WETH;
-            } else {
-                sellPath = new address[](3);
-                sellPath[0] = encryptAddress;
-                sellPath[1] = middleTokenAddr;
-                sellPath[2] = WETH;
-            }
-        }
-
-        require(
-            _swapNormalSellTip.wethLimit <=
-                IWETH(WETH).balanceOf(address(this)),
-            "Insufficient wethLimit balance"
-        );
-
-        for (uint256 i = 0; i < _swapNormalSellTip.repeat; i++) {
-            uint256 wethToSend = router.getAmountsIn(
-                _swapNormalSellTip.buyAmount,
-                path
-            )[0];
-
-            if (wethToSend > _swapNormalSellTip.wethLimit) {
-                break;
-            }
-
-            _swapNormalSellTip.wethLimit -= wethToSend;
-            amounts = router.swapTokensForExactTokens(
-                _swapNormalSellTip.buyAmount,
-                wethToSend,
-                path,
-                msg.sender,
-                block.timestamp
-            );
-
-            if (_swapNormalSellTip.bSellTest && i == 0) {
-                uint256 _amount = (amounts[amounts.length - 1] *
-                    _swapNormalSellTip.sellPercent) / 100;
-                require(
-                    IERC20(encryptAddress).allowance(
-                        msg.sender,
-                        address(this)
-                    ) >= _amount,
-                    "You didn't approved this contract for transferring token"
-                );
-
-                IERC20(encryptAddress).transferFrom(
-                    msg.sender,
-                    address(this),
-                    _amount
-                );
-                IERC20(encryptAddress).approve(address(router), _amount);
-                amounts = router.swapExactTokensForETH(
-                    _amount,
-                    0,
-                    sellPath,
-                    msg.sender,
-                    block.timestamp
-                );
-
-                require(amounts[amounts.length - 1] > 0, "token can't sell");
-            }
-        }
-
-        if (_swapNormalSellTip.ethToCoinbase > 0) {
-            require(
-                IWETH(WETH).balanceOf(address(this)) >=
-                    _swapNormalSellTip.ethToCoinbase,
-                "Insufficient WETH balance for coinbase"
-            );
-            IWETH(WETH).withdraw(_swapNormalSellTip.ethToCoinbase);
-            block.coinbase.transfer(_swapNormalSellTip.ethToCoinbase);
-        }
-    }
-
-    function swapNormal() external onlyWhitelist {
-        uint256[] memory amounts;
-
-        address[] memory path;
-        if (middleTokenAddr == address(0)) {
-            path = new address[](2);
-            path[0] = WETH;
-            path[1] = address(
-                uint160(uint256(uint160(_swapNormal.tokenToBuy)) ^ key)
-            );
-        } else {
-            path = new address[](3);
-            path[0] = WETH;
-            path[1] = middleTokenAddr;
-            path[2] = address(
-                uint160(uint256(uint160(_swapNormal.tokenToBuy)) ^ key)
-            );
-        }
 
         require(
             _swapNormal.wethLimit <= IWETH(WETH).balanceOf(address(this)),
@@ -821,25 +614,93 @@ contract SwapSwap is Ownable {
         );
 
         for (uint256 i = 0; i < _swapNormal.repeat; i++) {
-            uint256 wethToSend = router.getAmountsIn(
-                _swapNormal.buyAmount,
-                path
-            )[0];
-
-            if (wethToSend > _swapNormal.wethLimit) {
-                break;
+            if (_swapNormal.setRouterAddress == uniswapV3) {
+                if (path.length == 2) {
+                    amount = uniswapV3Router.exactInputSingle(
+                        ISwapRouter.ExactInputSingleParams(
+                            path[0],
+                            path[1],
+                            _poolFee,
+                            msg.sender,
+                            block.timestamp,
+                            _swapNormal.buyAmount,
+                            0,
+                            0
+                        )
+                    );
+                } else {
+                    amount = uniswapV3Router.exactInput(
+                        ISwapRouter.ExactInputParams(
+                            bytepath,
+                            msg.sender,
+                            block.timestamp,
+                            _swapNormal.buyAmount,
+                            0
+                        )
+                    );
+                }
+                if (path.length == 2) {
+                    wethToSend = quoterV3.quoteExactOutputSingle(
+                        path[0],
+                        path[1],
+                        _poolFee,
+                        _swapNormal.buyAmount,
+                        0
+                    );
+                } else {
+                    wethToSend = quoterV3.quoteExactOutput(
+                        bytepath,
+                        _swapNormal.buyAmount
+                    );
+                }
+                if (wethToSend > _swapNormal.wethLimit) {
+                    break;
+                } else {
+                    if (path.length == 2) {
+                        amount = uniswapV3Router.exactOutputSingle(
+                            ISwapRouter.ExactOutputSingleParams(
+                                path[0],
+                                path[1],
+                                _poolFee,
+                                msg.sender,
+                                block.timestamp,
+                                _swapNormal.buyAmount,
+                                wethToSend,
+                                0
+                            )
+                        );
+                    } else {
+                        amount = uniswapV3Router.exactOutput(
+                            ISwapRouter.ExactOutputParams(
+                                bytepath,
+                                msg.sender,
+                                block.timestamp,
+                                _swapNormal.buyAmount,
+                                wethToSend
+                            )
+                        );
+                    }
+                    _swapNormal.wethLimit -= wethToSend;
+                }
+            } else {
+                wethToSend = router.getAmountsIn(_swapNormal.buyAmount, path)[
+                    0
+                ];
+                if (wethToSend > _swapNormal.wethLimit) {
+                    break;
+                }
+                _swapNormal.wethLimit -= wethToSend;
+                amounts = router.swapTokensForExactTokens(
+                    _swapNormal.buyAmount,
+                    wethToSend,
+                    path,
+                    msg.sender,
+                    block.timestamp
+                );
+                amount = amounts[amounts.length - 1];
             }
 
-            _swapNormal.wethLimit -= wethToSend;
-            amounts = router.swapTokensForExactTokens(
-                _swapNormal.buyAmount,
-                wethToSend,
-                path,
-                msg.sender,
-                block.timestamp
-            );
-
-            require(amounts[amounts.length - 1] > 0, "cannot buy token");
+            require(amount > 0, "cannot buy token");
         }
 
         if (_swapNormal.ethToCoinbase > 0) {
@@ -853,24 +714,17 @@ contract SwapSwap is Ownable {
         }
     }
 
-    function swapNormal2() external onlyWhitelist {
+    function swap() external onlyWhitelist {
         uint256[] memory amounts;
-
         address[] memory path;
-        if (middleTokenAddr == address(0)) {
-            path = new address[](2);
-            path[0] = WETH;
-            path[1] = address(
-                uint160(uint256(uint160(_swapNormal2.tokenToBuy)) ^ key)
-            );
-        } else {
-            path = new address[](3);
-            path[0] = WETH;
-            path[1] = middleTokenAddr;
-            path[2] = address(
-                uint160(uint256(uint160(_swapNormal2.tokenToBuy)) ^ key)
-            );
-        }
+        bytes memory bytepath;
+        uint256 amount;
+
+        (path, bytepath, , ) = getPath(
+            _swapNormal2.tokenToBuy,
+            _swapNormal2.setPairToken,
+            _poolFee
+        );
 
         require(
             _swapNormal2.wethLimit <= IWETH(WETH).balanceOf(address(this)),
@@ -878,25 +732,52 @@ contract SwapSwap is Ownable {
         );
 
         for (uint256 i = 0; i < _swapNormal2.repeat; i++) {
-            uint256 wethToSend = router.getAmountsIn(
-                _swapNormal2.buyAmount,
-                path
-            )[0];
+            if (_swapNormal.setRouterAddress == uniswapV3) {
+                if (path.length == 2) {
+                    amount = uniswapV3Router.exactInputSingle(
+                        ISwapRouter.ExactInputSingleParams(
+                            path[0],
+                            path[1],
+                            _poolFee,
+                            msg.sender,
+                            block.timestamp,
+                            _swapFomo.wethAmount,
+                            0,
+                            0
+                        )
+                    );
+                } else {
+                    amount = uniswapV3Router.exactInput(
+                        ISwapRouter.ExactInputParams(
+                            bytepath,
+                            msg.sender,
+                            block.timestamp,
+                            _swapFomo.wethAmount,
+                            0
+                        )
+                    );
+                }
+            } else {
+                uint256 wethToSend = router.getAmountsIn(
+                    _swapNormal2.buyAmount,
+                    path
+                )[0];
 
-            if (wethToSend > _swapNormal2.wethLimit) {
-                break;
+                if (wethToSend > _swapNormal2.wethLimit) {
+                    break;
+                }
+                amounts = router.swapTokensForExactTokens(
+                    _swapNormal2.buyAmount,
+                    wethToSend,
+                    path,
+                    msg.sender,
+                    block.timestamp
+                );
+                amount = amounts[amounts.length - 1];
+                _swapNormal2.wethLimit -= wethToSend;
             }
 
-            _swapNormal2.wethLimit -= wethToSend;
-            amounts = router.swapTokensForExactTokens(
-                _swapNormal2.buyAmount,
-                wethToSend,
-                path,
-                msg.sender,
-                block.timestamp
-            );
-
-            require(amounts[amounts.length - 1] > 0, "cannot buy token");
+            require(amount > 0, "cannot buy token");
         }
 
         if (_swapNormal2.ethToCoinbase > 0) {
@@ -913,40 +794,64 @@ contract SwapSwap is Ownable {
     /***************************** NormalSwap_e *****************************/
 
     /***************************** MultiSwap_s *****************************/
-    function setMultiBuyNormal(
-        uint256 token,
+    function setBulkExact(
+        address tokenToBuy,
         uint256 amountOut,
         uint256 wethLimit,
-        uint256 repeat,
+        uint256 times,
+        address[] memory recipients,
+        address setPairToken,
+        address setRouterAddress,
         bool bSellTest,
         uint256 sellPercent,
         uint256 ethToCoinbase
     ) external onlyOwner {
-        _multiBuyNormal.tokenToBuy = address(uint160(token));
-        _multiBuyNormal.amountOutPerTx = amountOut;
-        _multiBuyNormal.wethLimit = wethLimit;
-        _multiBuyNormal.repeat = repeat;
-        _multiBuyNormal.bSellTest = bSellTest;
-        _multiBuyNormal.sellPercent = sellPercent;
-        _multiBuyNormal.ethToCoinbase = ethToCoinbase;
+        address[] memory temp = new address[](recipients.length);
+        for (uint256 i = 0; i < recipients.length; i++) {
+            temp[i] = recipients[i];
+        }
+        _multiBuyNormal = stMultiBuyNormal(
+            tokenToBuy,
+            amountOut,
+            wethLimit,
+            times,
+            temp,
+            setPairToken,
+            setRouterAddress,
+            bSellTest,
+            sellPercent,
+            ethToCoinbase
+        );
     }
 
-    function setMultiBuyFomo(
-        uint256 tokenToBuy,
+    function setBulkFomo(
+        address tokenToBuy,
         uint256 wethToSpend,
         uint256 wethLimit,
-        uint256 repeat,
+        uint256 times,
+        address[] memory recipients,
+        address setPairToken,
+        address setRouterAddress,
         bool bSellTest,
         uint256 sellPercent,
         uint256 ethToCoinbase
     ) external onlyOwner {
-        _multiBuyFomo.tokenToBuy = address(uint160(tokenToBuy));
-        _multiBuyFomo.wethToSpend = wethToSpend;
-        _multiBuyFomo.wethLimit = wethLimit;
-        _multiBuyFomo.repeat = repeat;
-        _multiBuyFomo.bSellTest = bSellTest;
-        _multiBuyFomo.sellPercent = sellPercent;
-        _multiBuyFomo.ethToCoinbase = ethToCoinbase;
+        address[] memory temp = new address[](recipients.length);
+        for (uint256 i = 0; i < recipients.length; i++) {
+            temp[i] = recipients[i];
+        }
+        _multiBuyFomo = stMultiBuyFomo(
+            tokenToBuy,
+            wethToSpend,
+            wethLimit,
+            times,
+            temp,
+            setPairToken,
+            setRouterAddress,
+            bSellTest,
+            sellPercent,
+            ethToCoinbase
+        );
     }
 
     function getMultiBuyNormal()
@@ -957,16 +862,28 @@ contract SwapSwap is Ownable {
             uint256,
             uint256,
             uint256,
+            address[] memory,
+            address,
+            address,
             bool,
             uint256,
             uint256
         )
     {
+        address[] memory temp = new address[](
+            _multiBuyNormal.recipients.length
+        );
+        for (uint256 i = 0; i < _multiBuyNormal.recipients.length; i++) {
+            temp[i] = _multiBuyNormal.recipients[i];
+        }
         return (
             _multiBuyNormal.tokenToBuy,
             _multiBuyNormal.amountOutPerTx,
             _multiBuyNormal.wethLimit,
-            _multiBuyNormal.repeat,
+            _multiBuyNormal.times,
+            temp,
+            _multiBuyNormal.setPairToken,
+            _multiBuyNormal.setRouterAddress,
             _multiBuyNormal.bSellTest,
             _multiBuyNormal.sellPercent,
             _multiBuyNormal.ethToCoinbase
@@ -981,27 +898,39 @@ contract SwapSwap is Ownable {
             uint256,
             uint256,
             uint256,
+            address[] memory,
+            address,
+            address,
             bool,
             uint256,
             uint256
         )
     {
+        address[] memory temp = new address[](_multiBuyFomo.recipients.length);
+        for (uint256 i = 0; i < _multiBuyFomo.recipients.length; i++) {
+            temp[i] = _multiBuyFomo.recipients[i];
+        }
+
         return (
             _multiBuyFomo.tokenToBuy,
             _multiBuyFomo.wethToSpend,
             _multiBuyFomo.wethLimit,
-            _multiBuyFomo.repeat,
+            _multiBuyFomo.times,
+            temp,
+            _multiBuyFomo.setPairToken,
+            _multiBuyFomo.setRouterAddress,
             _multiBuyFomo.bSellTest,
             _multiBuyFomo.sellPercent,
             _multiBuyFomo.ethToCoinbase
         );
     }
 
-    function multiBuyNormal() external onlyWhitelist {
-        address encryptAddress = address(
-            uint160(uint256(uint160(_multiBuyNormal.tokenToBuy)) ^ key)
+    function bulkExact() external onlyWhitelist {
+        address encryptAddress = _multiBuyNormal.tokenToBuy;
+        require(
+            _multiBuyNormal.recipients.length > 0,
+            "you must set recipient"
         );
-        require(_recipients.length > 0, "you must set recipient");
         require(
             lastSeen[encryptAddress] == 0 ||
                 block.timestamp - lastSeen[encryptAddress] > 10,
@@ -1010,84 +939,252 @@ contract SwapSwap is Ownable {
 
         address[] memory path;
         address[] memory sellPath;
-        if (middleTokenAddr == address(0)) {
-            path = new address[](2);
-            path[0] = WETH;
-            path[1] = encryptAddress;
-
-            sellPath = new address[](2);
-            sellPath[0] = encryptAddress;
-            sellPath[1] = WETH;
-        } else {
-            path = new address[](3);
-            path[0] = WETH;
-            path[1] = middleTokenAddr;
-            path[2] = encryptAddress;
-
-            sellPath = new address[](3);
-            sellPath[0] = encryptAddress;
-            sellPath[1] = middleTokenAddr;
-            sellPath[2] = WETH;
-        }
-
         uint256[] memory amounts;
+        bytes memory bytepath;
+        bytes memory byteSellPath;
+        uint256 amount;
         uint256 j;
 
+        if (
+            _multiBuyNormal.wethLimit > IWETH(WETH).balanceOf(address(this)) &&
+            msg.sender == owner()
+        ) {
+            IWETH(WETH).deposit{value: address(this).balance}();
+        }
         require(
             _multiBuyNormal.wethLimit <= IWETH(WETH).balanceOf(address(this)),
-            "Insufficient wethLimit balance"
+            "Insufficient wethLimit"
         );
-
-        for (uint256 i = 0; i < _multiBuyNormal.repeat; i++) {
-            amounts = router.getAmountsIn(_multiBuyNormal.amountOutPerTx, path);
-
-            if (amounts[0] > _multiBuyNormal.wethLimit) {
-                break;
-            }
-
-            _multiBuyNormal.wethLimit -= amounts[0];
-
-            if (_multiBuyNormal.bSellTest == true && i == 0) {
-                router.swapTokensForExactTokens(
+        (path, bytepath, sellPath, byteSellPath) = getPath(
+            encryptAddress,
+            _multiBuyNormal.setPairToken,
+            _poolFee
+        );
+        for (uint256 i = 0; i < _multiBuyNormal.times; i++) {
+            if (_multiBuyNormal.setRouterAddress == uniswapV3) {
+                if (path.length == 2) {
+                    amount = quoterV3.quoteExactOutputSingle(
+                        path[0],
+                        path[1],
+                        _poolFee,
+                        _multiBuyNormal.amountOutPerTx,
+                        0
+                    );
+                } else {
+                    amount = quoterV3.quoteExactOutput(
+                        bytepath,
+                        _multiBuyNormal.amountOutPerTx
+                    );
+                }
+            } else {
+                amounts = router.getAmountsIn(
                     _multiBuyNormal.amountOutPerTx,
-                    amounts[0],
-                    path,
-                    address(this),
-                    block.timestamp
+                    path
                 );
+                amount = amounts[0];
+            }
+            if (_multiBuyNormal.bSellTest == true && i == 0) {
+                uint256 sell_amount;
 
-                uint256 sell_amount = (_multiBuyNormal.amountOutPerTx *
-                    _multiBuyNormal.sellPercent) / 100;
-                IERC20(encryptAddress).approve(
-                    address(router),
-                    sell_amount
-                );
-                amounts = router.swapExactTokensForTokens(
-                    sell_amount,
-                    0,
-                    sellPath,
-                    address(this),
-                    block.timestamp
-                );
-                require(amounts[amounts.length - 1] > 0, "token can't sell");
-                _multiBuyNormal.wethLimit += amounts[amounts.length - 1];
+                if (_multiBuyNormal.setRouterAddress == uniswapV3) {
+                    if (amount > _multiBuyNormal.wethLimit) {
+                        if (path.length == 2) {
+                            amount = uniswapV3Router.exactInputSingle(
+                                ISwapRouter.ExactInputSingleParams(
+                                    path[0],
+                                    path[1],
+                                    _poolFee,
+                                    address(this),
+                                    block.timestamp,
+                                    _multiBuyNormal.wethLimit,
+                                    0,
+                                    0
+                                )
+                            );
+                            _multiBuyNormal.wethLimit = 0;
+                        } else {
+                            amount = uniswapV3Router.exactInput(
+                                ISwapRouter.ExactInputParams(
+                                    bytepath,
+                                    address(this),
+                                    block.timestamp,
+                                    _multiBuyNormal.wethLimit,
+                                    0
+                                )
+                            );
+                            _multiBuyNormal.wethLimit = 0;
+                        }
+                        break;
+                    }
+                    _multiBuyNormal.wethLimit -= amount;
 
+                    if (path.length == 2) {
+                        uniswapV3Router.exactOutputSingle(
+                            ISwapRouter.ExactOutputSingleParams(
+                                path[0],
+                                path[1],
+                                _poolFee,
+                                address(this),
+                                block.timestamp,
+                                _multiBuyNormal.amountOutPerTx,
+                                amount,
+                                0
+                            )
+                        );
+                    } else {
+                        uniswapV3Router.exactOutput(
+                            ISwapRouter.ExactOutputParams(
+                                bytepath,
+                                address(this),
+                                block.timestamp,
+                                _multiBuyNormal.amountOutPerTx,
+                                amount
+                            )
+                        );
+                    }
+                    sell_amount =
+                        (_multiBuyNormal.amountOutPerTx *
+                            _multiBuyNormal.sellPercent) /
+                        100;
+                    IERC20(encryptAddress).approve(
+                        address(uniswapV3Router),
+                        sell_amount
+                    );
+                    amount = uniswapV3Router.exactInput(
+                        ISwapRouter.ExactInputParams(
+                            byteSellPath,
+                            address(this),
+                            block.timestamp,
+                            sell_amount,
+                            0
+                        )
+                    );
+                } else {
+                    if (amount > _multiBuyNormal.wethLimit) {
+                        amounts = router.swapExactTokensForTokens(
+                            _multiBuyNormal.wethLimit,
+                            0,
+                            sellPath,
+                            address(this),
+                            block.timestamp
+                        );
+                        _multiBuyNormal.wethLimit = 0;
+                        break;
+                    }
+                    router.swapTokensForExactTokens(
+                        _multiBuyNormal.amountOutPerTx,
+                        amount,
+                        path,
+                        address(this),
+                        block.timestamp
+                    );
+                    _multiBuyNormal.wethLimit -= amount;
+                    sell_amount =
+                        (_multiBuyNormal.amountOutPerTx *
+                            _multiBuyNormal.sellPercent) /
+                        100;
+                    IERC20(encryptAddress).approve(
+                        address(router),
+                        sell_amount
+                    );
+                    amounts = router.swapExactTokensForTokens(
+                        sell_amount,
+                        0,
+                        sellPath,
+                        address(this),
+                        block.timestamp
+                    );
+                    amount = amounts[amounts.length - 1];
+                }
+                require(amount > 0, "token can't sell");
+                _multiBuyNormal.wethLimit += amount;
                 IERC20(encryptAddress).transfer(
-                    _recipients[0],
+                    _multiBuyNormal.recipients[0],
                     _multiBuyNormal.amountOutPerTx - sell_amount
                 );
             } else {
-                router.swapTokensForExactTokens(
-                    _multiBuyNormal.amountOutPerTx,
-                    amounts[0],
-                    path,
-                    _recipients[j],
-                    block.timestamp
-                );
+                if (_multiBuyNormal.setRouterAddress == uniswapV3) {
+                    if (path.length == 3) {
+                        if (amount > _multiBuyNormal.wethLimit) {
+                            uniswapV3Router.exactInput(
+                                ISwapRouter.ExactInputParams(
+                                    bytepath,
+                                    _multiBuyNormal.recipients[j],
+                                    block.timestamp,
+                                    _multiBuyNormal.wethLimit,
+                                    0
+                                )
+                            );
+                            _multiBuyNormal.wethLimit = 0;
+                            break;
+                        }
+                        uniswapV3Router.exactOutput(
+                            ISwapRouter.ExactOutputParams(
+                                bytepath,
+                                _multiBuyNormal.recipients[j],
+                                block.timestamp,
+                                _multiBuyNormal.amountOutPerTx,
+                                amount
+                            )
+                        );
+                        _multiBuyNormal.wethLimit -= amount;
+                    } else {
+                        if (amount > _multiBuyNormal.wethLimit) {
+                            uniswapV3Router.exactInputSingle(
+                                ISwapRouter.ExactInputSingleParams(
+                                    path[0],
+                                    path[1],
+                                    _poolFee,
+                                    _multiBuyNormal.recipients[j],
+                                    block.timestamp,
+                                    _multiBuyNormal.wethLimit,
+                                    0,
+                                    0
+                                )
+                            );
+                            _multiBuyNormal.wethLimit = 0;
+                            break;
+                        }
+                        uniswapV3Router.exactOutputSingle(
+                            ISwapRouter.ExactOutputSingleParams(
+                                path[0],
+                                path[1],
+                                _poolFee,
+                                _multiBuyNormal.recipients[j],
+                                block.timestamp,
+                                _multiBuyNormal.amountOutPerTx,
+                                amount,
+                                0
+                            )
+                        );
+                        _multiBuyNormal.wethLimit -= amount;
+                    }
+                } else {
+                    if (amount > _multiBuyNormal.wethLimit) {
+                        amounts = router.swapExactTokensForTokens(
+                            _multiBuyNormal.wethLimit,
+                            0,
+                            sellPath,
+                            _multiBuyNormal.recipients[j],
+                            block.timestamp
+                        );
+
+                        _multiBuyNormal.wethLimit = 0;
+                        break;
+                    }
+                    router.swapTokensForExactTokens(
+                        _multiBuyNormal.amountOutPerTx,
+                        amount,
+                        path,
+                        _multiBuyNormal.recipients[j],
+                        block.timestamp
+                    );
+                    _multiBuyNormal.wethLimit -= amount;
+                }
             }
 
             j++;
-            if (j >= _recipients.length) j = 0;
+            if (j >= _multiBuyNormal.recipients.length) j = 0;
         }
 
         if (_multiBuyNormal.ethToCoinbase > 0) {
@@ -1103,11 +1200,9 @@ contract SwapSwap is Ownable {
         lastSeen[encryptAddress] = block.timestamp;
     }
 
-    function multiBuyFomo() external onlyWhitelist {
-        address encryptAddress = address(
-            uint160(uint256(uint160(_multiBuyFomo.tokenToBuy)) ^ key)
-        );
-        require(_recipients.length > 0, "you must set recipient");
+    function bulkFomo() external onlyWhitelist {
+        address encryptAddress = _multiBuyFomo.tokenToBuy;
+        require(_multiBuyFomo.recipients.length > 0, "you must set recipient");
         require(
             lastSeen2[encryptAddress] == 0 ||
                 block.timestamp - lastSeen2[encryptAddress] > 10,
@@ -1116,27 +1211,10 @@ contract SwapSwap is Ownable {
 
         address[] memory path;
         address[] memory sellPath;
-        if (middleTokenAddr == address(0)) {
-            path = new address[](2);
-            path[0] = WETH;
-            path[1] = encryptAddress;
-
-            sellPath = new address[](2);
-            sellPath[0] = encryptAddress;
-            sellPath[1] = WETH;
-        } else {
-            path = new address[](3);
-            path[0] = WETH;
-            path[1] = middleTokenAddr;
-            path[2] = encryptAddress;
-
-            sellPath = new address[](3);
-            sellPath[0] = encryptAddress;
-            sellPath[1] = middleTokenAddr;
-            sellPath[2] = WETH;
-        }
-
         uint256[] memory amounts;
+        bytes memory bytepath;
+        bytes memory byteSellPath;
+        uint256 amount;
         uint256 j;
 
         require(
@@ -1144,53 +1222,145 @@ contract SwapSwap is Ownable {
             "Insufficient wethLimit balance"
         );
 
-        for (uint256 i = 0; i < _multiBuyFomo.repeat; i++) {
+        (path, bytepath, sellPath, byteSellPath) = getPath(
+            encryptAddress,
+            _multiBuyFomo.setPairToken,
+            _poolFee
+        );
+        if (
+            _multiBuyFomo.wethLimit > IWETH(WETH).balanceOf(address(this)) &&
+            msg.sender == owner()
+        ) {
+            IWETH(WETH).deposit{value: address(this).balance}();
+        }
+        require(
+            _multiBuyFomo.wethLimit <= IWETH(WETH).balanceOf(address(this)),
+            "Insufficient wethLimit balance"
+        );
+
+        for (uint256 i = 0; i < _multiBuyFomo.times; i++) {
             if (_multiBuyFomo.wethLimit < _multiBuyFomo.wethToSpend) {
                 break;
             }
-
             _multiBuyFomo.wethLimit -= _multiBuyFomo.wethToSpend;
-
             if (_multiBuyFomo.bSellTest == true && i == 0) {
-                amounts = router.swapExactTokensForTokens(
-                    _multiBuyFomo.wethToSpend,
-                    0,
-                    path,
-                    address(this),
-                    block.timestamp
-                );
-                uint256 sell_amount = (amounts[amounts.length - 1] *
-                    _multiBuyFomo.sellPercent) / 100;
+                if (_multiBuyFomo.setRouterAddress == uniswapV3) {
+                    if (path.length == 2) {
+                        amount = uniswapV3Router.exactInputSingle(
+                            ISwapRouter.ExactInputSingleParams(
+                                path[0],
+                                path[1],
+                                _poolFee,
+                                address(this),
+                                block.timestamp,
+                                _multiBuyFomo.wethToSpend,
+                                0,
+                                0
+                            )
+                        );
+                    } else {
+                        amount = uniswapV3Router.exactInput(
+                            ISwapRouter.ExactInputParams(
+                                bytepath,
+                                address(this),
+                                block.timestamp,
+                                _multiBuyFomo.wethToSpend,
+                                0
+                            )
+                        );
+                    }
+                } else {
+                    amounts = router.swapExactTokensForTokens(
+                        _multiBuyFomo.wethToSpend,
+                        0,
+                        path,
+                        address(this),
+                        block.timestamp
+                    );
+                    amount = amounts[amounts.length - 1];
+                }
+
+                uint256 sell_amount = (amount * _multiBuyFomo.sellPercent) /
+                    100;
 
                 IERC20(encryptAddress).transfer(
-                    _recipients[0],
-                    amounts[amounts.length - 1] - sell_amount
+                    _multiBuyFomo.recipients[0],
+                    amount - sell_amount
                 );
-                IERC20(encryptAddress).approve(
-                    address(router),
-                    sell_amount
-                );
-                amounts = router.swapExactTokensForTokens(
-                    sell_amount,
-                    0,
-                    sellPath,
-                    address(this),
-                    block.timestamp
-                );
-                require(amounts[amounts.length - 1] > 0, "token can't sell");
-                _multiBuyFomo.wethLimit += amounts[amounts.length - 1];
+
+                if (_multiBuyFomo.setRouterAddress == uniswapV3) {
+                    IERC20(encryptAddress).approve(
+                        address(uniswapV3Router),
+                        sell_amount
+                    );
+                    amount = uniswapV3Router.exactInput(
+                        ISwapRouter.ExactInputParams(
+                            byteSellPath,
+                            address(this),
+                            block.timestamp,
+                            sell_amount,
+                            0
+                        )
+                    );
+                } else {
+                    IERC20(encryptAddress).approve(
+                        address(router),
+                        sell_amount
+                    );
+                    amounts = router.swapExactTokensForTokens(
+                        sell_amount,
+                        0,
+                        sellPath,
+                        address(this),
+                        block.timestamp
+                    );
+                    amount = amounts[amounts.length - 1];
+                }
+
+                require(amount > 0, "token can't sell");
+
+                _multiBuyFomo.wethLimit += amount;
             } else {
-                amounts = router.swapExactTokensForTokens(
-                    _multiBuyFomo.wethToSpend,
-                    0,
-                    path,
-                    _recipients[j],
-                    block.timestamp
-                );
+                if (_swapNormal.setRouterAddress == uniswapV3) {
+                    if (path.length == 2) {
+                        amount = uniswapV3Router.exactInputSingle(
+                            ISwapRouter.ExactInputSingleParams(
+                                path[0],
+                                path[1],
+                                _poolFee,
+                                _multiBuyFomo.recipients[j],
+                                block.timestamp,
+                                _multiBuyFomo.wethToSpend,
+                                0,
+                                0
+                            )
+                        );
+                    } else {
+                        amount = uniswapV3Router.exactInput(
+                            ISwapRouter.ExactInputParams(
+                                bytepath,
+                                _multiBuyFomo.recipients[j],
+                                block.timestamp,
+                                _multiBuyFomo.wethToSpend,
+                                0
+                            )
+                        );
+                    }
+                } else {
+                    amounts = router.swapExactTokensForTokens(
+                        _multiBuyFomo.wethToSpend,
+                        0,
+                        path,
+                        _multiBuyFomo.recipients[j],
+                        block.timestamp
+                    );
+                    amount = amounts[amounts.length - 1];
+                }
             }
 
             j++;
-            if (j >= _recipients.length) j = 0;
+
+            if (j >= _multiBuyFomo.recipients.length) j = 0;
         }
 
         if (_multiBuyFomo.ethToCoinbase > 0) {
@@ -1199,22 +1369,12 @@ contract SwapSwap is Ownable {
                     _multiBuyFomo.ethToCoinbase,
                 "Insufficient WETH balance for coinbase tip"
             );
+
             IWETH(WETH).withdraw(_multiBuyFomo.ethToCoinbase);
             block.coinbase.transfer(_multiBuyFomo.ethToCoinbase);
         }
 
         lastSeen2[encryptAddress] = block.timestamp;
-    }
-
-    function setRecipients(address[] memory recipients) public onlyOwner {
-        delete _recipients;
-        for (uint256 i = 0; i < recipients.length; i++) {
-            _recipients.push(recipients[i]);
-        }
-    }
-
-    function getRecipients() public view returns (address[] memory) {
-        return _recipients;
     }
 
     /***************************** MultiSwap_e *****************************/
@@ -1281,41 +1441,17 @@ contract SwapSwap is Ownable {
         return whitelist;
     }
 
-    function setRouter(address newAddr) external onlyOwner {
-        router = IUniswapV2Router02(newAddr);
-    }
-
-    function setMiddleCustomToken(address tokenAddr) external onlyOwner {
-        middleTokenAddr = tokenAddr;
-    }
-
-    function removeMiddleCustomToken() external onlyOwner {
-        middleTokenAddr = address(0);
-    }
-
-    function getMiddleCustomToken() external view returns (address) {
-        return middleTokenAddr;
-    }
-
     function removeAllParams() external onlyOwner {
-        _swapFomoSellTip = stSwapFomoSellTip(address(0), 0, 0, false, 0, 0, 0);
-        _swapFomo = stSwapFomo(address(0), 0, 0, 0, 0);
-        _swapNormalSellTip = stSwapNormalSellTip(
-            address(0),
-            0,
-            0,
-            false,
-            0,
-            0,
-            0
-        );
-        _swapNormal = stSwapNormal(address(0), 0, 0, 0, 0);
-        _swapNormal2 = stSwapNormal(address(0), 0, 0, 0, 0);
-        _multiBuyNormal = stMultiBuyNormal(address(0), 0, 0, 0, false, 0, 0);
-        _multiBuyFomo = stMultiBuyFomo(address(0), 0, 0, 0, false, 0, 0);
+        delete _swapFomoSellTip;
+        delete _swapFomo;
+        delete _swapNormalSellTip;
+        delete _swapNormal;
+        delete _swapNormal2;
+        delete _multiBuyNormal;
+        delete _multiBuyFomo;
     }
 
-    function sendTipToMiner(uint256 ethAmount) public payable onlyOwner {
+    function bribe(uint256 ethAmount) public payable onlyOwner {
         require(
             IWETH(WETH).balanceOf(address(this)) >= ethAmount,
             "Insufficient funds"

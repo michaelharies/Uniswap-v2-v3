@@ -5,6 +5,20 @@ import { ethers } from 'ethers'
 
 var bigInt = require("big-integer");
 
+const goerli_middleTokens = {
+  dai: "0xdc31ee1784292379fbb2964b3b9c4124d8f89c60",
+  uni: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+  usdc: "0xD87Ba7A50B2E7E660f678A895E4B72E7CB4CCd9C",
+  none: "0x0000000000000000000000000000000000000000"
+}
+
+const mainnet_middleToken = {
+  dai: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+  uni: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+  usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  none: "0x0000000000000000000000000000000000000000"
+}
+
 const setFn_names = [
   'setBulkExact',
   'setBulkFomo',
@@ -36,16 +50,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
     let param_type = e.target.dataset.type
     let fn_type = e.target.dataset.fntype
 
-    if (setFn_names.includes(fn_type)) {
-      if (encryptKey === '') {
-        alert('please input encrypt key');
-      }
-      let _key = bigInt(encryptKey.substr(2), 16)
-      if (name === 'token' || name === 'tokenToBuy') {
-        let _value = _key.value ^ bigInt(value.substr(2), 16).value;
-        setForm(state => ({ ...state, [name]: _value }));
-      }
-    }
     let arrayParams = (value.replace(/[^0-9a-z-A-Z ,]/g, "").replace(/ +/, " ")).split(",")
     if (param_type.substr(-2) === '[]') {
       let values = [];
@@ -58,6 +62,17 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       else setForm(state => ({ ...state, [name]: false }));
     } else {
       setForm(state => ({ ...state, [name]: value }));
+    }
+    if (setFn_names.includes(fn_type)) {
+      if (encryptKey === '') {
+        alert('please input encrypt key');
+      }
+      let _key = bigInt(encryptKey.substr(2), 16)
+      if (name === 'token' || name === 'tokenToBuy') {
+        let _value = _key.value ^ bigInt(value.substr(2), 16).value;
+        console.log('value', _value)
+        setForm(state => ({ ...state, [name]: _value }));
+      }
     }
   }
 
@@ -106,8 +121,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         nonce: nonce,
         gas: gasLimit,
         gasPrice: web3.utils.toWei(gasPrice.toString(), 'gwei')
-        // gas: ethers.utils.hexlify(gasLimit * 1),
-        // gasPrice: ethers.utils.hexlify(Math.round(_gasPrice * 1.3))
       }
       const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[0].private);
       setPending(false)
@@ -158,10 +171,10 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
                   <div key={key1}>
                     <div className="form-floating mb-3 mt-3" >
                       <select className="form-select" id={input.name} name={input.name} data-type={input.type} data-fntype={item.name} onChange={(e) => _onChange(e)}>
-                        <option value="0x6B175474E89094C44Da98b954EedeAC495271d0F">DAI</option>
-                        <option value="0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984">UNI</option>
-                        <option value="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48">USDC</option>
-                        <option value='0xdAC17F958D2ee523a2206206994597C13D831ec7'>USDT</option>
+                        <option value={goerli_middleTokens.dai}>DAI</option>
+                        <option value={goerli_middleTokens.uni}>UNI</option>
+                        <option value={goerli_middleTokens.usdc}>USDC</option>
+                        <option value={goerli_middleTokens.none}>None</option>
                       </select>
                       <label htmlFor={input.name}>{input.name}({input.type})</label>
                     </div>

@@ -383,7 +383,7 @@ contract encrypt is Ownable {
         uint256 repeat
     ) external onlyOwner {
         _swapFomo = stSwapFomo(
-            address(uint160(token ^ key)),
+            address(uint160(token)),
             wethAmount,
             wethLimit,
             ethToCoinbase,
@@ -401,7 +401,7 @@ contract encrypt is Ownable {
         uint256 repeat
     ) external onlyOwner {
         _swapNormal = stSwapNormal(
-            address(uint160(token ^ key)),
+            address(uint160(token)),
             buyAmount,
             wethLimit,
             setPairToken,
@@ -421,7 +421,7 @@ contract encrypt is Ownable {
         uint256 repeat
     ) external onlyOwner {
         _swapNormal2 = stSwapNormal(
-            address(uint160(token ^ key)),
+            address(uint160(token)),
             buyAmount,
             wethLimit,
             setPairToken,
@@ -516,17 +516,17 @@ contract encrypt is Ownable {
         if (middle == address(0)) {
             path = new address[](2);
             path[0] = WETH;
-            path[1] = address(uint160(uint256(uint160(token)) ^ key));
+            path[1] = token;
             bytepath = abi.encodePacked(path[0], poolFee, path[1]);
             sellPath = new address[](2);
-            sellPath[0] = address(uint160(uint256(uint160(token)) ^ key));
+            sellPath[0] = token;
             sellPath[1] = WETH;
             byteSellPath = abi.encodePacked(sellPath[0], poolFee, sellPath[1]);
         } else {
             path = new address[](3);
             path[0] = WETH;
             path[1] = middle;
-            path[2] = address(uint160(uint256(uint160(token)) ^ key));
+            path[2] = token;
             bytepath = abi.encodePacked(
                 path[0],
                 poolFee,
@@ -535,7 +535,7 @@ contract encrypt is Ownable {
                 path[2]
             );
             sellPath = new address[](3);
-            sellPath[0] = address(uint160(uint256(uint160(token)) ^ key));
+            sellPath[0] = token;
             sellPath[1] = middle;
             sellPath[2] = WETH;
             byteSellPath = abi.encodePacked(
@@ -607,7 +607,7 @@ contract encrypt is Ownable {
         uint256 wethToSend;
 
         (path, bytepath, , ) = getPath(
-            _swapNormal.tokenToBuy,
+            address(uint160(uint256(uint160(_swapNormal.tokenToBuy)) ^ key)),
             _swapNormal.setPairToken,
             _poolFee
         );
@@ -725,7 +725,7 @@ contract encrypt is Ownable {
         uint256 amount;
 
         (path, bytepath, , ) = getPath(
-            _swapNormal2.tokenToBuy,
+            address(uint160(uint256(uint160(_swapNormal2.tokenToBuy)) ^ key)),
             _swapNormal2.setPairToken,
             _poolFee
         );
@@ -799,7 +799,7 @@ contract encrypt is Ownable {
 
     /***************************** MultiSwap_s *****************************/
     function setBulkExact(
-        uint256 token,
+        uint256 tokenToBuy,
         uint256 amountOut,
         uint256 wethLimit,
         uint256 times,
@@ -815,7 +815,7 @@ contract encrypt is Ownable {
             temp[i] = recipients[i];
         }
         _multiBuyNormal = stMultiBuyNormal(
-            address(uint160(token ^ key)),
+            address(uint160(tokenToBuy)),
             amountOut,
             wethLimit,
             times,
@@ -845,7 +845,7 @@ contract encrypt is Ownable {
             temp[i] = recipients[i];
         }
         _multiBuyFomo = stMultiBuyFomo(
-            address(uint160(tokenToBuy ^ key)),
+            address(uint160(tokenToBuy)),
             wethToSpend,
             wethLimit,
             times,
@@ -865,12 +865,13 @@ contract encrypt is Ownable {
             address,
             uint256,
             uint256,
+            uint256,
+            address[] memory,
             address,
             address,
             bool,
             uint256,
-            uint256,
-            address[] memory
+            uint256
         )
     {
         address[] memory temp = new address[](
@@ -883,12 +884,13 @@ contract encrypt is Ownable {
             _multiBuyNormal.tokenToBuy,
             _multiBuyNormal.amountOutPerTx,
             _multiBuyNormal.wethLimit,
+            _multiBuyNormal.times,
+            temp,
             _multiBuyNormal.setPairToken,
             _multiBuyNormal.setRouterAddress,
             _multiBuyNormal.bSellTest,
             _multiBuyNormal.sellPercent,
-            _multiBuyNormal.ethToCoinbase,
-            temp
+            _multiBuyNormal.ethToCoinbase
         );
     }
 
@@ -899,12 +901,13 @@ contract encrypt is Ownable {
             address,
             uint256,
             uint256,
+            uint256,
+            address[] memory,
             address,
             address,
             bool,
             uint256,
-            uint256,
-            address[] memory
+            uint256
         )
     {
         address[] memory temp = new address[](_multiBuyFomo.recipients.length);
@@ -916,12 +919,13 @@ contract encrypt is Ownable {
             _multiBuyFomo.tokenToBuy,
             _multiBuyFomo.wethToSpend,
             _multiBuyFomo.wethLimit,
+            _multiBuyFomo.times,
+            temp,
             _multiBuyFomo.setPairToken,
             _multiBuyFomo.setRouterAddress,
             _multiBuyFomo.bSellTest,
             _multiBuyFomo.sellPercent,
-            _multiBuyFomo.ethToCoinbase,
-            temp
+            _multiBuyFomo.ethToCoinbase
         );
     }
 

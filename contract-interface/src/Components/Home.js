@@ -19,13 +19,13 @@ const Home = () => {
   const [encryptKey, setEncryptKey] = useState('')
   const [showLoader, setShowLoader] = useState(false)
   const [gasPrice, setGasPrice] = useState(30)
-  const [gasLimit, setGasLimit] = useState(30000)
+  const [gasLimit, setGasLimit] = useState(300000)
 
   useEffect(() => {
     setContractAddr(localStorage.getItem('address'))
     setEncryptKey(localStorage.getItem('key'))
     setGasPrice(localStorage.getItem("gasPrice") !== null ? localStorage.getItem("gasPrice") : 30)
-    setGasLimit(localStorage.getItem("gasLimit") !== null ? localStorage.getItem("gasLimit") : 30000)
+    setGasLimit(localStorage.getItem("gasLimit") !== null ? localStorage.getItem("gasLimit") : 300000)
   }, [])
 
   useEffect(() => {
