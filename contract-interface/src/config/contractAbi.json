@@ -1,6 +1,12 @@
 [
 	{
-		"inputs": [],
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_whitelist",
+				"type": "address"
+			}
+		],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
 	},
@@ -434,7 +440,7 @@
 			},
 			{
 				"internalType": "uint256",
-				"name": "amountOut",
+				"name": "amountOutPerTx",
 				"type": "uint256"
 			},
 			{
