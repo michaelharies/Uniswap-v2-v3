@@ -61,7 +61,6 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
       if (value === 'true') setForm(state => ({ ...state, [name]: true }));
       else setForm(state => ({ ...state, [name]: false }));
     } else {
-      console.log('here', name, value)
       setForm(state => ({ ...state, [name]: value }));
     }
     if (setFn_names.includes(fn_type)) {
@@ -91,8 +90,7 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
-    console.log('params', params)
-    try {
+    // try {
       const tx = contract.methods[e.target.name](...params);
       let _gasLimit = await tx.estimateGas()
       let _gasPrice = await web3.eth.getGasPrice()
@@ -149,11 +147,11 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
             closeButton: true, pauseOnFocusLoss: false
           });
       }
-    } catch (err) {
-      setPending(false)
-      toast.update(_data[e.target.value], { render: `Failed!! ${e.target.value}`, type: "error", isLoading: false, closeButton: true, autoClose: 5000 });
-      console.log('err', err)
-    }
+    // } catch (err) {
+    //   setPending(false)
+    //   toast.update(_data[e.target.value], { render: `Failed!! ${e.target.value}`, type: "error", isLoading: false, closeButton: true, autoClose: 5000 });
+    //   console.log('err', err)
+    // }
   }
 
   return (

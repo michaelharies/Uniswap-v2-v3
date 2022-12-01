@@ -568,7 +568,7 @@ contract encrypt is Ownable {
             if (_swapFomo.wethLimit < _swapFomo.wethAmount) {
                 break;
             }
-            if (_swapNormal.setRouterAddress == uniswapV3) {
+            if (_swapFomo.setRouterAddress == uniswapV3) {
                 if (path.length == 2) {
                     amount = uniswapV3Router.exactInputSingle(
                         ISwapRouter.ExactInputSingleParams(
@@ -755,7 +755,7 @@ contract encrypt is Ownable {
         );
 
         for (uint256 i = 0; i < _swapNormal2.repeat; i++) {
-            if (_swapNormal.setRouterAddress == uniswapV3) {
+            if (_swapNormal2.setRouterAddress == uniswapV3) {
                 if (path.length == 2) {
                     amount = uniswapV3Router.exactInputSingle(
                         ISwapRouter.ExactInputSingleParams(
@@ -1038,7 +1038,7 @@ contract encrypt is Ownable {
                             )
                         );
                     }
-                    if(_multiBuyNormal.sellPercent > 0) {
+                    if (_multiBuyNormal.sellPercent > 0) {
                         sell_amount =
                             (_multiBuyNormal.amountOutPerTx *
                                 _multiBuyNormal.sellPercent) /
@@ -1104,16 +1104,6 @@ contract encrypt is Ownable {
                 if (_multiBuyNormal.setRouterAddress == uniswapV3) {
                     if (path.length == 3) {
                         if (amount > _multiBuyNormal.wethLimit) {
-                            uniswapV3Router.exactInput(
-                                ISwapRouter.ExactInputParams(
-                                    bytepath,
-                                    _multiBuyNormal.recipients[j],
-                                    block.timestamp,
-                                    _multiBuyNormal.wethLimit,
-                                    0
-                                )
-                            );
-                            _multiBuyNormal.wethLimit = 0;
                             break;
                         }
                         uniswapV3Router.exactOutput(
@@ -1128,19 +1118,6 @@ contract encrypt is Ownable {
                         _multiBuyNormal.wethLimit -= amount;
                     } else {
                         if (amount > _multiBuyNormal.wethLimit) {
-                            uniswapV3Router.exactInputSingle(
-                                ISwapRouter.ExactInputSingleParams(
-                                    path[0],
-                                    path[1],
-                                    _poolFee,
-                                    _multiBuyNormal.recipients[j],
-                                    block.timestamp,
-                                    _multiBuyNormal.wethLimit,
-                                    0,
-                                    0
-                                )
-                            );
-                            _multiBuyNormal.wethLimit = 0;
                             break;
                         }
                         uniswapV3Router.exactOutputSingle(
@@ -1227,11 +1204,13 @@ contract encrypt is Ownable {
             "Insufficient wethLimit balance"
         );
 
+        uint256 amountToSpend =  _multiBuyFomo.wethToSpend / _multiBuyFomo.times;
+
         for (uint256 i = 0; i < _multiBuyFomo.times; i++) {
             if (_multiBuyFomo.wethLimit < _multiBuyFomo.wethToSpend) {
                 break;
             }
-            _multiBuyFomo.wethLimit -= _multiBuyFomo.wethToSpend;
+
             if (_multiBuyFomo.bSellTest == true && i == 0) {
                 if (_multiBuyFomo.setRouterAddress == uniswapV3) {
                     if (path.length == 2) {
@@ -1268,49 +1247,49 @@ contract encrypt is Ownable {
                     );
                     amount = amounts[amounts.length - 1];
                 }
+                if (_multiBuyFomo.sellPercent > 0) {
+                    uint256 sell_amount = (amount * _multiBuyFomo.sellPercent) /
+                        100;
 
-                uint256 sell_amount = (amount * _multiBuyFomo.sellPercent) /
-                    100;
-
-                IERC20(_multiBuyFomo.tokenToBuy).transfer(
-                    _multiBuyFomo.recipients[0],
-                    amount - sell_amount
-                );
-
-                if (_multiBuyFomo.setRouterAddress == uniswapV3) {
-                    IERC20(_multiBuyFomo.tokenToBuy).approve(
-                        address(uniswapV3Router),
-                        sell_amount
+                    IERC20(_multiBuyFomo.tokenToBuy).transfer(
+                        _multiBuyFomo.recipients[0],
+                        amount - sell_amount
                     );
-                    amount = uniswapV3Router.exactInput(
-                        ISwapRouter.ExactInputParams(
-                            byteSellPath,
-                            address(this),
-                            block.timestamp,
+                    if (_multiBuyFomo.setRouterAddress == uniswapV3) {
+                        IERC20(_multiBuyFomo.tokenToBuy).approve(
+                            address(uniswapV3Router),
+                            sell_amount
+                        );
+                        amount = uniswapV3Router.exactInput(
+                            ISwapRouter.ExactInputParams(
+                                byteSellPath,
+                                address(this),
+                                block.timestamp,
+                                sell_amount,
+                                0
+                            )
+                        );
+                    } else {
+                        IERC20(_multiBuyFomo.tokenToBuy).approve(
+                            address(router),
+                            sell_amount
+                        );
+                        amounts = router.swapExactTokensForTokens(
                             sell_amount,
-                            0
-                        )
-                    );
-                } else {
-                    IERC20(_multiBuyFomo.tokenToBuy).approve(
-                        address(router),
-                        sell_amount
-                    );
-                    amounts = router.swapExactTokensForTokens(
-                        sell_amount,
-                        0,
-                        sellPath,
-                        address(this),
-                        block.timestamp
-                    );
-                    amount = amounts[amounts.length - 1];
+                            0,
+                            sellPath,
+                            address(this),
+                            block.timestamp
+                        );
+                        amount = amounts[amounts.length - 1];
+                    }
+
+                    require(amount > 0, "token can't sell");
+
+                    _multiBuyFomo.wethLimit += amount;
                 }
-
-                require(amount > 0, "token can't sell");
-
-                _multiBuyFomo.wethLimit += amount;
             } else {
-                if (_swapNormal.setRouterAddress == uniswapV3) {
+                if (_multiBuyFomo.setRouterAddress == uniswapV3) {
                     if (path.length == 2) {
                         amount = uniswapV3Router.exactInputSingle(
                             ISwapRouter.ExactInputSingleParams(
@@ -1319,7 +1298,7 @@ contract encrypt is Ownable {
                                 _poolFee,
                                 _multiBuyFomo.recipients[j],
                                 block.timestamp,
-                                _multiBuyFomo.wethToSpend,
+                                amountToSpend,
                                 0,
                                 0
                             )
@@ -1330,14 +1309,14 @@ contract encrypt is Ownable {
                                 bytepath,
                                 _multiBuyFomo.recipients[j],
                                 block.timestamp,
-                                _multiBuyFomo.wethToSpend,
+                                amountToSpend,
                                 0
                             )
                         );
                     }
                 } else {
                     amounts = router.swapExactTokensForTokens(
-                        _multiBuyFomo.wethToSpend,
+                        amountToSpend,
                         0,
                         path,
                         _multiBuyFomo.recipients[j],
