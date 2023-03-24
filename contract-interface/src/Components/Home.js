@@ -82,16 +82,6 @@ const Home = () => {
                     }} required />
                   </div>
                 </div>
-                {/* <div className="form-group row mb-3 ">
-                  <label htmlFor="address" className="col-sm-2 col-form-label">Abi</label>
-                  <div className="col-sm-10">
-                    <textarea type="text" className="form-control" id="address" placeholder="Input contract abi"
-                      value={JSON.stringify(contractAbi)}
-                      onChange={(e) => {
-                        getAbi(e.target.value)
-                      }} />
-                  </div>
-                </div> */}
                 <div className="form-group row mb-3 ">
                   <label htmlFor="key" className="col-sm-2 col-form-label">Key</label>
                   <div className="col-sm-10">
