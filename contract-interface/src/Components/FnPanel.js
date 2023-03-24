@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import './Custom.css';
-import { ethers } from 'ethers'
 
 var bigInt = require("big-integer");
 
@@ -90,68 +89,62 @@ const FnPanel = ({ contractAbi, fnIdx, changeSelectedFn, contractAddr, contract,
         })
       }
     })
-    // try {
-      const tx = contract.methods[e.target.name](...params);
-      let _gasLimit = await tx.estimateGas()
-      let _gasPrice = await web3.eth.getGasPrice()
-      let nonce = await web3.eth.getTransactionCount(my_accounts[0].public, "pending")
-      if (gasLimit < _gasLimit || gasPrice < _gasPrice / 10 ** 9) {
-        let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take some time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice / 10 ** 9}, Gas Limit: ${_gasLimit}`)
-        if (!confirm) {
-          setPending(false)
-          toast.update(
-            _data[e.target.value],
-            {
-              render: `Declined Tx for ${e.target.value}`,
-              type: "warn",
-              isLoading: false,
-              closeButton: true,
-              autoClose: 5000,
-              pauseOnFocusLoss: false
-            });
-          return
-        }
-      }
-      let txdata = {
-        to: contractAddr,
-        type: 0,
-        data: tx.encodeABI(),
-        nonce: nonce,
-        gas: gasLimit,
-        gasPrice: web3.utils.toWei(gasPrice.toString(), 'gwei')
-      }
-      const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[0].private);
-      setPending(false)
-      toast.update(
-        _data[e.target.value],
-        {
-          render: `${e.target.value} is pending.... hash: ${createTransaction.transactionHash}`,
-          type: "success",
-          isLoading: true,
-          className: 'rotateY animated',
-          closeButton: true,
-          pauseOnFocusLoss: false
-        });
-      const txRes = await web3.eth.sendSignedTransaction(createTransaction.rawTransaction);
-      console.log('tx res', txRes)
-      if (txRes) {
-        setShowLoader(false)
+    const tx = contract.methods[e.target.name](...params);
+    let _gasLimit = await tx.estimateGas()
+    let _gasPrice = await web3.eth.getGasPrice()
+    let nonce = await web3.eth.getTransactionCount(my_accounts[0].public, "pending")
+    if (gasLimit < _gasLimit || gasPrice < _gasPrice / 10 ** 9) {
+      let confirm = window.confirm(`You set low Gas Price or Gas Limit than default. \nIt will take some time to confirm this tx. \nExpected values: \nGas Price: ${_gasPrice / 10 ** 9}, Gas Limit: ${_gasLimit}`)
+      if (!confirm) {
+        setPending(false)
         toast.update(
           _data[e.target.value],
           {
-            render: `Successfully ${e.target.value}.`,
-            type: "success",
+            render: `Declined Tx for ${e.target.value}`,
+            type: "warn",
             isLoading: false,
+            closeButton: true,
             autoClose: 5000,
-            className: 'rotateY animated',
-            closeButton: true, pauseOnFocusLoss: false
+            pauseOnFocusLoss: false
           });
+        return
       }
-    // } catch (err) {
-    //   setPending(false)
-    //   toast.update(_data[e.target.value], { render: `Failed!! ${e.target.value}`, type: "error", isLoading: false, closeButton: true, autoClose: 5000 });
-    //   console.log('err', err)
-    // }
+    }
+    let txdata = {
+      to: contractAddr,
+      type: 0,
+      data: tx.encodeABI(),
+      nonce: nonce,
+      gas: gasLimit,
+      gasPrice: web3.utils.toWei(gasPrice.toString(), 'gwei')
+    }
+    const createTransaction = await web3.eth.accounts.signTransaction(txdata, my_accounts[0].private);
+    setPending(false)
+    toast.update(
+      _data[e.target.value],
+      {
+        render: `${e.target.value} is pending.... hash: ${createTransaction.transactionHash}`,
+        type: "success",
+        isLoading: true,
+        className: 'rotateY animated',
+        closeButton: true,
+        pauseOnFocusLoss: false
+      });
+    const txRes = await web3.eth.sendSignedTransaction(createTransaction.rawTransaction);
+    console.log('tx res', txRes)
+    if (txRes) {
+      setShowLoader(false)
+      toast.update(
+        _data[e.target.value],
+        {
+          render: `Successfully ${e.target.value}.`,
+          type: "success",
+          isLoading: false,
+          autoClose: 5000,
+          className: 'rotateY animated',
+          closeButton: true, pauseOnFocusLoss: false
+        });
+    }
   }
 
   return (
