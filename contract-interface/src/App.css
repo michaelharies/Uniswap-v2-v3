@@ -17,9 +17,6 @@ input.form-control:focus, textarea.form-control:focus {
   background-color: #262631;
   color: #ffffff;
 }
-/* .form-floating > label {
-  color: #1a1a1e;
-} */
 
 .App-logo {
   height: 40vmin;
