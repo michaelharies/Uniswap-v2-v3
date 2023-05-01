@@ -26,11 +26,12 @@ const Home = () => {
     setEncryptKey(localStorage.getItem('key'))
     setGasPrice(localStorage.getItem("gasPrice") !== null ? localStorage.getItem("gasPrice") : 30)
     setGasLimit(localStorage.getItem("gasLimit") !== null ? localStorage.getItem("gasLimit") : 300000)
+    console.log('public', my_accounts[0])
   }, [])
 
   useEffect(() => {
     if (contractAddr !== "") {
-      const _contract = new web3.eth.Contract(ContractAbi, contractAddr, { from: my_accounts[0].public });
+      const _contract = new web3.eth.Contract(ContractAbi, contractAddr, { from: my_accounts.public });
       setContract(_contract)
       getAbi(ContractAbi)
     }
